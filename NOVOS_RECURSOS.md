@@ -351,7 +351,7 @@ import { motion } from 'framer-motion'
 ## 🔔 10. Sistema de Toasts/Notificações
 
 ### Localização
-- **Arquivo**: `src/hooks/useToast.js`
+- **Arquivo**: `src/hooks/useToast.jsx`
 
 ### Bibliotecas Utilizadas
 - **Sonner** - Toast moderno e responsivo
@@ -453,7 +453,7 @@ src/
 ├── hooks/
 │   ├── useStats.js                 # Hooks de estatísticas
 │   ├── useFinancialAI.js           # Hooks de IA
-│   └── useToast.js                 # Hooks de notificações
+│   └── useToast.jsx                # Hooks de notificações
 ├── constants/
 │   └── categories.js               # Constantes de categorias
 └── index.css                       # Estilos globais com animações

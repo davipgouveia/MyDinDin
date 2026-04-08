@@ -3,6 +3,21 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 
 const FinanceContext = createContext(undefined)
 
+const withTimeout = async (promise, timeoutMs, timeoutMessage) => {
+  let timeoutId
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage))
+    }, timeoutMs)
+  })
+
+  try {
+    return await Promise.race([promise, timeoutPromise])
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 const mapTransactionRow = (row) => ({
   id: row.id,
   description: row.note ?? 'Sem descricao',
@@ -11,6 +26,10 @@ const mapTransactionRow = (row) => ({
   category: row.category?.name ?? 'Outros',
   owner: row.profile?.full_name ?? 'Membro',
   date: row.transaction_date,
+  createdAt: row.created_at,
+  dueDate: row.due_date ?? null,
+  isPaid: row.is_paid ?? true,
+  paymentStatus: row.payment_status ?? null,
 })
 
 export function FinanceProvider({ children }) {
@@ -51,9 +70,9 @@ export function FinanceProvider({ children }) {
   const loadTransactions = useCallback(async (groupId) => {
     const { data, error: txError } = await supabase
       .from('transactions')
-      .select('id, amount, type, transaction_date, note, profile:profiles(full_name), category:categories(name)')
+      .select('id, amount, type, transaction_date, due_date, is_paid, payment_status, note, created_at, profile:profiles(full_name), category:categories(name)')
       .eq('group_id', groupId)
-      .order('transaction_date', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(200)
 
     if (txError) throw txError
@@ -87,12 +106,25 @@ export function FinanceProvider({ children }) {
 
     const bootstrap = async () => {
       try {
-        const { data } = await supabase.auth.getSession()
+        const { data } = await withTimeout(
+          supabase.auth.getSession(),
+          8000,
+          'Tempo limite ao verificar sessao do Supabase.',
+        )
+
         if (!mounted) return
 
         setSession(data.session)
+
+        // Evita tela de loading infinita se consultas iniciais travarem.
+        setLoading(false)
+
         if (data.session?.user) {
-          await refreshWorkspace(data.session.user)
+          await withTimeout(
+            refreshWorkspace(data.session.user),
+            10000,
+            'Tempo limite ao carregar dados iniciais do workspace.',
+          )
         }
       } catch (bootstrapError) {
         if (mounted) setError(bootstrapError.message)
@@ -115,7 +147,11 @@ export function FinanceProvider({ children }) {
       }
 
       try {
-        await refreshWorkspace(nextSession.user)
+        await withTimeout(
+          refreshWorkspace(nextSession.user),
+          10000,
+          'Tempo limite ao atualizar dados da sessao.',
+        )
       } catch (refreshError) {
         setError(refreshError.message)
       }
@@ -262,6 +298,9 @@ export function FinanceProvider({ children }) {
       amount: Number(data.amount),
       type: data.type,
       transaction_date: new Date().toISOString().slice(0, 10),
+      due_date: data.dueDate || null,
+      is_paid: data.isPaid ?? true,
+      payment_status: data.isPaid ? 'paid' : 'pending',
       note: data.description,
       created_by: user.id,
     })

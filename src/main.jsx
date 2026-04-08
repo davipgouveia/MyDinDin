@@ -4,6 +4,13 @@ import App from './App'
 import './index.css'
 import { FinanceProvider } from './context/FinanceContext'
 
+if (import.meta.env.PROD) {
+  const manifestLink = document.createElement('link')
+  manifestLink.rel = 'manifest'
+  manifestLink.href = '/manifest.json'
+  document.head.appendChild(manifestLink)
+}
+
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js').catch((error) => {

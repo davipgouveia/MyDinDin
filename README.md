@@ -178,7 +178,7 @@ src/
 ├── hooks/
 │   ├── useStats.js                 ✨ Novo
 │   ├── useFinancialAI.js           ✨ Novo
-│   └── useToast.js                 ✨ Novo
+│   └── useToast.jsx                ✨ Novo
 ├── constants/
 │   └── categories.js               ✨ Novo
 ├── examples/

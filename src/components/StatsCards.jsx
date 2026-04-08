@@ -1,15 +1,9 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react'
+import { useDailyMonthlyStats } from '../hooks/useStats'
 
 export function DailyStatsCard() {
-  // Importado do hook useStats
-  const stats = {
-    totalDailyExpenses: Math.random() * 500,
-    totalDailyIncomes: Math.random() * 1000,
-    avgDailyExpense: Math.random() * 100,
-  }
-
-  const balance = stats.totalDailyIncomes - stats.totalDailyExpenses
+  const { totalDailyExpenses, totalDailyIncomes, balance } = useDailyMonthlyStats()
   const isPositive = balance >= 0
 
   const containerVariants = {
@@ -39,21 +33,16 @@ export function DailyStatsCard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {/* Gastos do dia */}
-        <motion.div
-          variants={itemVariants}
-          className="rounded-lg bg-slate-900/50 p-3"
-        >
+        <motion.div variants={itemVariants} className="rounded-lg bg-slate-900/50 p-3">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <TrendingDown size={14} className="text-red-400" />
             Gastos
           </div>
           <div className="mt-1 text-lg font-bold text-red-400">
-            R$ {stats.totalDailyExpenses.toFixed(2)}
+            R$ {totalDailyExpenses.toFixed(2)}
           </div>
         </motion.div>
 
-        {/* Rendas do dia */}
         <motion.div
           variants={itemVariants}
           transition={{ delay: 0.1 }}
@@ -64,11 +53,10 @@ export function DailyStatsCard() {
             Rendas
           </div>
           <div className="mt-1 text-lg font-bold text-green-400">
-            R$ {stats.totalDailyIncomes.toFixed(2)}
+            R$ {totalDailyIncomes.toFixed(2)}
           </div>
         </motion.div>
 
-        {/* Saldo do dia */}
         <motion.div
           variants={itemVariants}
           transition={{ delay: 0.2 }}
@@ -88,11 +76,7 @@ export function DailyStatsCard() {
 }
 
 export function MonthlyStatsCard() {
-  const stats = {
-    totalMonthlyExpenses: Math.random() * 3000,
-    avgDailyExpense: Math.random() * 100,
-    largestExpenseCategory: { category: 'alimentacao', amount: Math.random() * 500 },
-  }
+  const { totalMonthlyExpenses, avgDailyExpense, largestExpenseCategory } = useDailyMonthlyStats()
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -121,15 +105,13 @@ export function MonthlyStatsCard() {
       </div>
 
       <div className="space-y-3">
-        {/* Total mensal */}
         <motion.div variants={itemVariants} className="rounded-lg bg-slate-900/50 p-3">
           <div className="text-xs text-slate-400">Total de Gastos</div>
           <div className="mt-1 text-lg font-bold text-red-400">
-            R$ {stats.totalMonthlyExpenses.toFixed(2)}
+            R$ {totalMonthlyExpenses.toFixed(2)}
           </div>
         </motion.div>
 
-        {/* Média diária */}
         <motion.div
           variants={itemVariants}
           transition={{ delay: 0.1 }}
@@ -137,12 +119,11 @@ export function MonthlyStatsCard() {
         >
           <div className="text-xs text-slate-400">Média Diária</div>
           <div className="mt-1 text-lg font-bold text-orange-400">
-            R$ {stats.avgDailyExpense.toFixed(2)}
+            R$ {avgDailyExpense.toFixed(2)}
           </div>
         </motion.div>
 
-        {/* Maior gasto */}
-        {stats.largestExpenseCategory && (
+        {largestExpenseCategory && (
           <motion.div
             variants={itemVariants}
             transition={{ delay: 0.2 }}
@@ -150,11 +131,9 @@ export function MonthlyStatsCard() {
           >
             <div className="text-xs text-slate-400">Maior Categoria</div>
             <div className="mt-1 flex items-center justify-between">
-              <span className="font-semibold text-slate-200">
-                {stats.largestExpenseCategory.category}
-              </span>
+              <span className="font-semibold text-slate-200">{largestExpenseCategory.category}</span>
               <span className="font-bold text-yellow-400">
-                R$ {stats.largestExpenseCategory.amount.toFixed(2)}
+                R$ {largestExpenseCategory.amount.toFixed(2)}
               </span>
             </div>
           </motion.div>

@@ -1,7 +1,7 @@
-# FinanceiroD&L - Documentação de Desenvolvimento
+# FinançasAPP - Documentação de Desenvolvimento
 
 ## 1. Visão Geral
-O **FinanceiroD&L** é um aplicativo de controle financeiro pessoal simplificado, desenvolvido como um PWA (Progressive Web App). O foco é ser intuitivo, rápido e focado no uso mobile diário para o casal.
+O **FinançasAPP** é um aplicativo de controle financeiro multiusuário, desenvolvido como um PWA (Progressive Web App). O foco é ser intuitivo, rápido e preparado para uso em grupos e famílias.
 
 ## 2. Stack Tecnológica
 - **Framework:** React.js (Vite)

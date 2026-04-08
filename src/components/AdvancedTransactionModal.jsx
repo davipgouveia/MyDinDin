@@ -14,7 +14,9 @@ export function AdvancedTransactionModal({
     amount: '',
     category: 'alimentacao',
     date: new Date().toISOString().split('T')[0],
+    dueDate: '',
     paymentMethod: 'credito',
+    isPaid: true,
     isRecurring: false,
     frequency: 'mensal',
     endDate: '',
@@ -22,7 +24,6 @@ export function AdvancedTransactionModal({
   })
 
   const categories = transactionType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
-  const selectedCategory = categories.find((c) => c.id === formData.category)
 
   const backdropVariants = {
     hidden: { opacity: 0 },
@@ -57,7 +58,9 @@ export function AdvancedTransactionModal({
       amount: '',
       category: transactionType === 'expense' ? 'alimentacao' : 'salario',
       date: new Date().toISOString().split('T')[0],
+      dueDate: '',
       paymentMethod: 'credito',
+      isPaid: true,
       isRecurring: false,
       frequency: 'mensal',
       endDate: '',
@@ -84,9 +87,8 @@ export function AdvancedTransactionModal({
             exit="exit"
             onClick={(e) => e.stopPropagation()}
             onSubmit={handleSubmit}
-            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-6"
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-6"
           >
-            {/* Header */}
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-100">
                 {transactionType === 'expense' ? 'Nova Despesa' : 'Novo Rendimento'}
@@ -102,7 +104,6 @@ export function AdvancedTransactionModal({
               </motion.button>
             </div>
 
-            {/* Descrição */}
             <div className="mb-4">
               <label className="text-xs font-medium text-slate-300">Descrição</label>
               <input
@@ -115,7 +116,6 @@ export function AdvancedTransactionModal({
               />
             </div>
 
-            {/* Valor */}
             <div className="mb-4">
               <label className="text-xs font-medium text-slate-300">Valor (R$)</label>
               <input
@@ -130,7 +130,6 @@ export function AdvancedTransactionModal({
               />
             </div>
 
-            {/* Categoria */}
             <div className="mb-4">
               <label className="text-xs font-medium text-slate-300">Categoria</label>
               <div className="mt-2 grid grid-cols-3 gap-2">
@@ -154,7 +153,6 @@ export function AdvancedTransactionModal({
               </div>
             </div>
 
-            {/* Data */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="text-xs font-medium text-slate-300">Data</label>
@@ -162,6 +160,16 @@ export function AdvancedTransactionModal({
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-300">Vencimento (opcional)</label>
+                <input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
                 />
               </div>
@@ -182,7 +190,19 @@ export function AdvancedTransactionModal({
               </div>
             </div>
 
-            {/* Recorrente */}
+            <div className="mb-4 flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="alreadyPaid"
+                checked={formData.isPaid}
+                onChange={(e) => setFormData({ ...formData, isPaid: e.target.checked })}
+                className="h-4 w-4 cursor-pointer rounded border-slate-600"
+              />
+              <label htmlFor="alreadyPaid" className="cursor-pointer text-xs font-medium text-slate-300">
+                Já foi pago
+              </label>
+            </div>
+
             <div className="mb-4 flex items-center gap-3">
               <input
                 type="checkbox"
@@ -191,12 +211,11 @@ export function AdvancedTransactionModal({
                 onChange={(e) => setFormData({ ...formData, isRecurring: e.target.checked })}
                 className="h-4 w-4 cursor-pointer rounded border-slate-600"
               />
-              <label htmlFor="recurring" className="text-xs font-medium text-slate-300 cursor-pointer">
+              <label htmlFor="recurring" className="cursor-pointer text-xs font-medium text-slate-300">
                 Pagamento recorrente
               </label>
             </div>
 
-            {/* Frequência (se recorrente) */}
             {formData.isRecurring && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -217,7 +236,7 @@ export function AdvancedTransactionModal({
                   ))}
                 </select>
 
-                <label className="mt-2 text-xs font-medium text-slate-300 block">
+                <label className="mt-2 block text-xs font-medium text-slate-300">
                   Data de Encerramento (opcional)
                 </label>
                 <input
@@ -229,19 +248,17 @@ export function AdvancedTransactionModal({
               </motion.div>
             )}
 
-            {/* Notas */}
             <div className="mb-6">
               <label className="text-xs font-medium text-slate-300">Notas</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-500 focus:outline-none resize-none"
+                className="mt-1 w-full resize-none rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
                 placeholder="Adicione notas sobre essa transação"
                 rows="2"
               />
             </div>
 
-            {/* Botões */}
             <div className="flex gap-3">
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -256,7 +273,7 @@ export function AdvancedTransactionModal({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 py-2 text-sm font-medium text-white hover:from-cyan-600 hover:to-blue-600"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 py-2 text-sm font-medium text-white hover:from-cyan-600 hover:to-blue-600"
               >
                 <Plus size={16} />
                 Adicionar

@@ -3,6 +3,7 @@ import { formatCurrency, formatDate } from '../utils/format'
 
 export default function TransactionItem({ transaction, onDelete }) {
   const isIncome = transaction.type === 'income'
+  const isPaid = transaction.isPaid !== false
 
   return (
     <li className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
@@ -17,6 +18,8 @@ export default function TransactionItem({ transaction, onDelete }) {
             <p className="text-sm font-medium text-slate-100">{transaction.description}</p>
             <p className="text-xs text-slate-400">
               {transaction.category} • {transaction.owner} • {formatDate(transaction.date)}
+              {transaction.dueDate ? ` • vence ${formatDate(transaction.dueDate)}` : ''}
+              {transaction.dueDate ? ` • ${isPaid ? 'pago' : 'em aberto'}` : ''}
             </p>
           </div>
         </div>

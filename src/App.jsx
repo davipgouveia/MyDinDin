@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import SummaryCard from './components/SummaryCard'
 import TransactionItem from './components/TransactionItem'
 import TransactionModal from './components/TransactionModal'
+import { LoginScreen } from './components/LoginScreen'
 import Logo from './components/Logo'
 import { DailyStatsCard, MonthlyStatsCard } from './components/StatsCards'
 import { PaymentRemindersSection, RecurringPaymentsSection } from './components/RemindersSection'
@@ -82,6 +83,8 @@ function DashboardContent() {
         amount: formData.type === 'expense' ? -Math.abs(formData.amount) : Math.abs(formData.amount),
         category: formData.category,
         created_at: formData.date || new Date().toISOString(),
+        dueDate: formData.dueDate || null,
+        isPaid: formData.isPaid ?? true,
       })
       toast.success('Transação adicionada com sucesso!')
       setAdvancedModalOpen(false)
@@ -116,7 +119,7 @@ function DashboardContent() {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">FinançasAPP</h1>
-              <p className="text-sm text-slate-400">Gestão financeira inteligente</p>
+              <p className="text-sm text-slate-400">Gestão financeira para grupos e famílias</p>
               <p className="mt-1 inline-flex rounded-full border border-cyan-400/40 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-300">
                 v2.0 enterprise
               </p>
@@ -296,9 +299,8 @@ function DashboardContent() {
         >
           <CategoriesManager
             categories={getOrderedCategories('expense')}
-            onAddCustom={(catName) => {
-              addCustomCategory(catName, 'expense')
-              toast.success(`Categoria "${catName}" criada!`)
+            onAddCustom={(category) => {
+              addCustomCategory(category)
             }}
           />
         </motion.section>
@@ -432,11 +434,12 @@ export default function App() {
 
   // Dashboard com novos providers
   return (
-    <TransactionCategoryProvider>
-      <ToastProvider>
+    <>
+      <ToastProvider />
+      <TransactionCategoryProvider>
         <DashboardContent />
-      </ToastProvider>
-    </TransactionCategoryProvider>
+      </TransactionCategoryProvider>
+    </>
   )
 }
 
@@ -463,10 +466,10 @@ function SignInView() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md items-center p-4">
-      <section className="w-full rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl">
+    <LoginScreen>
+      <section className="w-full rounded-3xl border border-white/10 bg-slate-950/60 p-6 shadow-2xl backdrop-blur-xl">
         <h1 className="text-2xl font-bold">FinançasAPP</h1>
-        <p className="mt-1 text-sm text-slate-400">Entrar para acessar os dados do grupo familiar</p>
+        <p className="mt-1 text-sm text-slate-400">Entrar para acessar sua área financeira</p>
 
         <form className="mt-5 space-y-3" onSubmit={handleAuthSubmit}>
           <input
@@ -508,7 +511,7 @@ function SignInView() {
 
         {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
       </section>
-    </main>
+    </LoginScreen>
   )
 }
 
@@ -528,10 +531,10 @@ function SetupView() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md items-center p-4">
-      <section className="w-full rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl">
-        <h1 className="text-2xl font-bold">Criar grupo familiar</h1>
-        <p className="mt-1 text-sm text-slate-400">Primeiro acesso: configure o seu espaço multi-tenant.</p>
+    <LoginScreen>
+      <section className="w-full rounded-3xl border border-white/10 bg-slate-950/60 p-6 shadow-2xl backdrop-blur-xl">
+        <h1 className="text-2xl font-bold">Criar espaço financeiro</h1>
+        <p className="mt-1 text-sm text-slate-400">Primeiro acesso: configure seu espaço multiusuário.</p>
 
         <form className="mt-5 space-y-3" onSubmit={handleSetupSubmit}>
           <input
@@ -562,6 +565,6 @@ function SetupView() {
 
         {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
       </section>
-    </main>
+    </LoginScreen>
   )
 }

@@ -1,12 +1,16 @@
 import { motion, Reorder } from 'framer-motion'
-import { Plus, X, GripVertical } from 'lucide-react'
-import { useState } from 'react'
+import { Plus, GripVertical } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function CategoriesManager({ categories = [], onReorder = () => {}, onAddCustom = () => {} }) {
   const [isReordering, setIsReordering] = useState(false)
   const [items, setItems] = useState(categories)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newCategory, setNewCategory] = useState({ name: '', color: '#0369a1', icon: '📌' })
+
+  useEffect(() => {
+    setItems(categories)
+  }, [categories])
 
   const handleReorderComplete = () => {
     const newOrder = items.map((item) => item.id)
@@ -18,6 +22,7 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
     e.preventDefault()
     if (newCategory.name.trim()) {
       onAddCustom(newCategory)
+      setItems((prev) => [...prev, { id: `custom_${Date.now()}`, ...newCategory, isCustom: true }])
       setNewCategory({ name: '', color: '#0369a1', icon: '📌' })
       setShowAddForm(false)
     }
@@ -65,7 +70,6 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
         </div>
       </div>
 
-      {/* Formulário para adicionar categoria */}
       {showAddForm && (
         <motion.form
           initial={{ opacity: 0, height: 0 }}
@@ -108,14 +112,8 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
         </motion.form>
       )}
 
-      {/* Lista de categorias */}
       {isReordering ? (
-        <Reorder.Group
-          axis="y"
-          values={items}
-          onReorder={setItems}
-          className="space-y-2"
-        >
+        <Reorder.Group axis="y" values={items} onReorder={setItems} className="space-y-2">
           <motion.div variants={containerVariants} initial="hidden" animate="visible">
             {items.map((category) => (
               <Reorder.Item key={category.id} value={category}>
@@ -129,9 +127,7 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
                   <div className="flex-1">
                     <p className="text-sm font-medium text-slate-200">{category.name}</p>
                   </div>
-                  {category.isCustom && (
-                    <span className="text-xs text-blue-400">Custom</span>
-                  )}
+                  {category.isCustom && <span className="text-xs text-blue-400">Custom</span>}
                 </motion.div>
               </Reorder.Item>
             ))}
@@ -151,10 +147,7 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
               whileHover={{ scale: 1.05, y: -2 }}
               className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 p-3 text-center"
             >
-              <span
-                className="block h-3 w-3 rounded-full"
-                style={{ backgroundColor: category.color }}
-              />
+              <span className="block h-3 w-3 rounded-full" style={{ backgroundColor: category.color }} />
               <div className="flex-1">
                 <p className="text-lg">{category.icon}</p>
                 <p className="text-xs text-slate-400">{category.name}</p>
@@ -162,6 +155,16 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
             </motion.div>
           ))}
         </motion.div>
+      )}
+
+      {isReordering && (
+        <button
+          type="button"
+          onClick={handleReorderComplete}
+          className="w-full rounded-lg bg-cyan-500/20 px-3 py-2 text-xs font-medium text-cyan-300 hover:bg-cyan-500/30"
+        >
+          Salvar ordem
+        </button>
       )}
     </div>
   )

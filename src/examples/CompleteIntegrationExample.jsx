@@ -9,10 +9,12 @@ import { PaymentRemindersSection, RecurringPaymentsSection } from './components/
 import { CategoriesManager } from './components/CategoriesManager'
 import { AIRecommendationsPanel, BudgetAlertPanel } from './components/AIRecommendations'
 import { AdvancedTransactionModal } from './components/AdvancedTransactionModal'
+import { FinanceProvider } from '../context/FinanceContext'
+import { TransactionCategoryProvider } from './context/TransactionCategoryContext'
 import { useTransactionCategory } from './context/TransactionCategoryContext'
 import { useFinancialAI, useFinancialBudget } from './hooks/useFinancialAI'
 import { useDailyMonthlyStats, useCategoryStats } from './hooks/useStats'
-import { ToastProvider, toast } from './hooks/useToast'
+import { ToastProvider, toast } from '../hooks/useToast'
 
 /**
  * EXEMPLO DE INTEGRAÇÃO COMPLETA
@@ -101,36 +103,38 @@ export function CompleteFinancialDashboard() {
   }
 
   return (
-    <ToastProvider>
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="min-h-screen bg-slate-950 p-4 sm:p-6"
-      >
-        {/* Header com Logo */}
+    <FinanceProvider>
+      <ToastProvider />
+      <TransactionCategoryProvider>
         <motion.div
-          variants={itemVariants}
-          className="mb-8 flex items-center justify-between"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="min-h-screen bg-slate-950 p-4 sm:p-6"
         >
-          <div className="flex items-center gap-4">
-            <Logo size="large" />
-            <div>
-              <h1 className="text-2xl font-bold text-slate-100">FinançasAPP</h1>
-              <p className="text-sm text-slate-400">Gestão financeira inteligente</p>
-            </div>
-          </div>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handleOpenTransaction('expense')}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 font-medium text-white hover:from-cyan-600 hover:to-blue-600"
+          {/* Header com Logo */}
+          <motion.div
+            variants={itemVariants}
+            className="mb-8 flex items-center justify-between"
           >
-            <Plus size={18} />
-            Nova Transação
-          </motion.button>
-        </motion.div>
+            <div className="flex items-center gap-4">
+              <Logo size="large" />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-100">FinançasAPP</h1>
+                <p className="text-sm text-slate-400">Gestão financeira inteligente</p>
+              </div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleOpenTransaction('expense')}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 font-medium text-white hover:from-cyan-600 hover:to-blue-600"
+            >
+              <Plus size={18} />
+              Nova Transação
+            </motion.button>
+          </motion.div>
 
         {/* Abas de Navegação */}
         <motion.div variants={itemVariants} className="mb-6 flex gap-2 overflow-x-auto">
@@ -270,15 +274,16 @@ export function CompleteFinancialDashboard() {
           )}
         </motion.div>
 
-        {/* Modal de Transação Avançado */}
-        <AdvancedTransactionModal
-          isOpen={isTransactionModalOpen}
-          onClose={() => setIsTransactionModalOpen(false)}
-          onSubmit={handleAddTransaction}
-          transactionType={transactionType}
-        />
-      </motion.div>
-    </ToastProvider>
+          {/* Modal de Transação Avançado */}
+          <AdvancedTransactionModal
+            isOpen={isTransactionModalOpen}
+            onClose={() => setIsTransactionModalOpen(false)}
+            onSubmit={handleAddTransaction}
+            transactionType={transactionType}
+          />
+        </motion.div>
+      </TransactionCategoryProvider>
+    </FinanceProvider>
   )
 }
 

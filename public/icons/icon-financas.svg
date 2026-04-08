@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="transparent"/>
+  <path d="M30 30Q60 15 60 15Q60 15 90 30V55Q90 85 60 95Q30 85 30 55Z" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M45 35Q60 28 75 35M40 45H80M45 55Q60 50 75 55M35 65H85" stroke="#ffffff" stroke-opacity="0.78" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="40" y="60" width="8" height="20" rx="1" fill="#ffffff" fill-opacity="0.9"/>
+  <rect x="52" y="50" width="8" height="30" rx="1" fill="#ffffff" fill-opacity="0.95"/>
+  <rect x="64" y="55" width="8" height="25" rx="1" fill="#ffffff" fill-opacity="0.9"/>
+  <path d="M76 62V48M73 52L76 48L79 52" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="60" y="105" text-anchor="middle" font-size="8" font-weight="700" font-family="Arial, sans-serif" fill="#ffffff" letter-spacing="0.5">FINANÇAS</text>
+  <text x="60" y="116" text-anchor="middle" font-size="6" font-weight="600" font-family="Arial, sans-serif" fill="#ffffff" opacity="0.9" letter-spacing="1">APP</text>
+</svg>

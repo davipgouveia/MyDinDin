@@ -1,4 +1,4 @@
--- FinanceiroD&L v2.0 Enterprise Edition
+-- FinançasAPP v2.0 Enterprise Edition
 -- Supabase / PostgreSQL migration
 -- Objetivo: multi-tenancy por grupo familiar com RLS estrita.
 

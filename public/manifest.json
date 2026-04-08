@@ -1,7 +1,7 @@
 {
-  "name": "FinanceiroD&L",
-  "short_name": "FinD&L",
-  "description": "Gestao financeira pessoal offline-first",
+  "name": "FinançasAPP",
+  "short_name": "FinançasAPP",
+  "description": "Gestão financeira multiusuário offline-first",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

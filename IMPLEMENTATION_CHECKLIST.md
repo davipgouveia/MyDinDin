@@ -106,7 +106,7 @@
 - [x] TransactionCategoryContext.jsx - Novo contexto
 - [x] useStats.js - Hooks de estatísticas
 - [x] useFinancialAI.js - Hooks de IA
-- [x] useToast.js - Hooks de notificações
+- [x] useToast.jsx - Hooks de notificações
 
 ### 📚 Documentação
 - [x] NOVOS_RECURSOS.md - Documentação completa
@@ -195,7 +195,7 @@ src/
 ├── hooks/
 │   ├── useStats.js                 ✅ Novo
 │   ├── useFinancialAI.js           ✅ Novo
-│   └── useToast.js                 ✅ Novo
+│   └── useToast.jsx                ✅ Novo
 ├── constants/
 │   └── categories.js               ✅ Novo
 ├── examples/

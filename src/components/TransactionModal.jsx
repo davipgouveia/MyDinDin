@@ -6,6 +6,8 @@ const defaultForm = {
   amount: '',
   type: 'expense',
   category: 'Outros',
+  dueDate: '',
+  isPaid: true,
 }
 
 export default function TransactionModal({ open, onClose, onSave, submitting = false }) {
@@ -82,6 +84,22 @@ export default function TransactionModal({ open, onClose, onSave, submitting = f
             onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
             className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
           />
+
+          <input
+            type="date"
+            value={form.dueDate}
+            onChange={(event) => setForm((prev) => ({ ...prev, dueDate: event.target.value }))}
+            className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+          />
+
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={form.isPaid}
+              onChange={(event) => setForm((prev) => ({ ...prev, isPaid: event.target.checked }))}
+            />
+            Já foi pago
+          </label>
 
           <button
             type="submit"

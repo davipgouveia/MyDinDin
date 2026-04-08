@@ -42,7 +42,7 @@ project/
     ├── hooks/
     │   ├── useStats.js
     │   ├── useFinancialAI.js
-    │   └── useToast.js
+   │   └── useToast.jsx
     ├── constants/
     │   └── categories.js
     ├── examples/
@@ -157,7 +157,7 @@ import { motion } from 'framer-motion'
 ---
 
 ### 🔔 Toasts/Notificações
-- **Arquivo**: `src/hooks/useToast.js`
+- **Arquivo**: `src/hooks/useToast.jsx`
 - **Leia**: [Toasts no NOVOS_RECURSOS.md](./NOVOS_RECURSOS.md#10-sistema-de-toastsnotificações)
 
 ```jsx
@@ -258,7 +258,7 @@ toast.success('Sucesso!')
 | IA | useFinancialAI | [Doc](./NOVOS_RECURSOS.md#7-ia-para-recomendações-financeiras) |
 | Orçamentos | useFinancialBudget | [Doc](./NOVOS_RECURSOS.md#8-sistema-de-orçamentos-com-alertas) |
 | Animações | index.css | [Doc](./NOVOS_RECURSOS.md#9-animações-fluidas-com-framer-motion) |
-| Toasts | useToast.js | [Doc](./NOVOS_RECURSOS.md#10-sistema-de-toastsnotificações) |
+| Toasts | useToast.jsx | [Doc](./NOVOS_RECURSOS.md#10-sistema-de-toastsnotificações) |
 
 ---
 

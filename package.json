@@ -2,7 +2,7 @@
   "name": "finan-as",
   "private": true,
   "version": "0.2.1",
-  "description": "FinanceiroD&L - App de gestão financeira pessoal com PWA",
+  "description": "FinançasAPP - App de gestão financeira multiusuário com PWA",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,6 +1,9 @@
 {
-  "/icon.svg/route": "app/icon.svg/route.js",
-  "/api/auth/signup/route": "app/api/auth/signup/route.js",
   "/api/auth/check-email/route": "app/api/auth/check-email/route.js",
+  "/api/auth/signup/route": "app/api/auth/signup/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/resend/send/route": "app/api/resend/send/route.js",
+  "/icon.svg/route": "app/icon.svg/route.js",
+  "/auth/callback/page": "app/auth/callback/page.js",
   "/page": "app/page.js"
 }

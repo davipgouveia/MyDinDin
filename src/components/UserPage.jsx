@@ -4,6 +4,7 @@ import { BadgeCheck, BellRing, Download, FileSpreadsheet, LogOut, Shield, Sparkl
 import { formatCurrency } from '../utils/format'
 import { isResendConfigured, sendAlertEmail } from '../lib/resend'
 import { buildGroupInviteEmail } from '../lib/emailTemplates'
+import { getPublicAppUrl } from '../lib/publicAppUrl'
 import { exportTransactionsCsv, printMonthlyPdfReport } from '../utils/reports'
 import { isWebhookConfigured, sendWebhookAlert } from '../lib/webhookAlerts'
 import { toast } from '../hooks/useToast'
@@ -144,7 +145,7 @@ export function UserPage({
 
       const expiresInDays = Number(inviteExpiresIn) || 7
       const inviterName = profile?.full_name || user?.email || 'Administrador'
-      const actionUrl = typeof window !== 'undefined' ? window.location.origin : undefined
+      const actionUrl = getPublicAppUrl()
 
       const results = await Promise.allSettled(
         emails.map(async (email) => {

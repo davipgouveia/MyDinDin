@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { buildSignupVerificationEmail } from '../../../../src/lib/emailTemplates'
+import { getPublicAppUrlWithPath } from '../../../../src/lib/publicAppUrl'
 
 const EMAIL_ALREADY_REGISTERED_ERROR = 'Este email ja possui cadastro. Use Entrar ou Esqueci minha senha.'
 const EMAIL_PAGE_SIZE = 200
@@ -101,8 +102,7 @@ export async function POST(request) {
       return NextResponse.json({ error: EMAIL_ALREADY_REGISTERED_ERROR }, { status: 409 })
     }
 
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const callbackUrl = `${String(origin).replace(/\/$/, '')}/auth/callback`
+    const callbackUrl = getPublicAppUrlWithPath('/auth/callback')
 
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',

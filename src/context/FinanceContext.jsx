@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
+import { getPublicAppUrlWithPath } from '../lib/publicAppUrl'
 
 const FinanceContext = createContext(undefined)
 
@@ -492,7 +493,7 @@ export function FinanceProvider({ children }) {
     setError(null)
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: getPublicAppUrlWithPath('/reset-password'),
     })
 
     setSubmitting(false)

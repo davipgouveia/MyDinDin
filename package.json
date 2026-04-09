@@ -1,7 +1,7 @@
 {
   "name": "finan-as",
   "private": true,
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "FinançasAPP - App de gestão financeira multiusuário com PWA",
   "type": "module",
   "scripts": {

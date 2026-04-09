@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
+import { HelpHint } from './HelpHint'
 
 export function QuickAddSheet({ open = false, onClose = () => {}, onSelectType = () => {} }) {
   return (
@@ -9,7 +10,7 @@ export function QuickAddSheet({ open = false, onClose = () => {}, onSelectType =
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end bg-slate-950/70 p-4 md:hidden"
+          className="fixed inset-0 z-50 flex items-end bg-slate-950/70 p-4 md:items-center md:justify-center"
           onClick={onClose}
         >
           <motion.div
@@ -17,11 +18,14 @@ export function QuickAddSheet({ open = false, onClose = () => {}, onSelectType =
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             onClick={(event) => event.stopPropagation()}
-            className="w-full rounded-[1.75rem] border border-slate-800 bg-slate-950 p-4 shadow-2xl"
+            className="w-full rounded-[1.75rem] border border-slate-800 bg-slate-950 p-4 shadow-2xl md:max-w-lg"
           >
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Novo lançamento</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Novo lançamento</p>
+                  <HelpHint text="Selecione se você quer registrar uma despesa ou uma receita. Depois, complete os detalhes no formulário." />
+                </div>
                 <h3 className="text-lg font-semibold text-white">Escolha o tipo</h3>
               </div>
               <button

@@ -18,6 +18,10 @@ const withTimeout = async (promise, timeoutMs, timeoutMessage) => {
   }
 }
 
+const wait = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms)
+})
+
 const mapTransactionRow = (row) => ({
   id: row.id,
   profileId: row.profile_id,
@@ -213,7 +217,10 @@ export function FinanceProvider({ children }) {
     let mounted = true
 
     const bootstrap = async () => {
+      const startedAt = Date.now()
       try {
+        if (mounted) setLoading(true)
+
         const { data } = await withTimeout(
           supabase.auth.getSession(),
           8000,
@@ -223,9 +230,6 @@ export function FinanceProvider({ children }) {
         if (!mounted) return
 
         setSession(data.session)
-
-        // Evita tela de loading infinita se consultas iniciais travarem.
-        setLoading(false)
 
         if (data.session?.user) {
           await withTimeout(
@@ -237,6 +241,11 @@ export function FinanceProvider({ children }) {
       } catch (bootstrapError) {
         if (mounted) setError(bootstrapError.message)
       } finally {
+        const elapsed = Date.now() - startedAt
+        const minimumVisibleMs = 900
+        if (elapsed < minimumVisibleMs) {
+          await wait(minimumVisibleMs - elapsed)
+        }
         if (mounted) setLoading(false)
       }
     }
@@ -244,6 +253,8 @@ export function FinanceProvider({ children }) {
     bootstrap()
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      const startedAt = Date.now()
+      setLoading(true)
       setSession(nextSession)
       setError(null)
 
@@ -254,6 +265,7 @@ export function FinanceProvider({ children }) {
         setBudgets([])
         setTransactionComments({})
         setActivityLogs([])
+        setLoading(false)
         return
       }
 
@@ -265,6 +277,13 @@ export function FinanceProvider({ children }) {
         )
       } catch (refreshError) {
         setError(refreshError.message)
+      } finally {
+        const elapsed = Date.now() - startedAt
+        const minimumVisibleMs = 450
+        if (elapsed < minimumVisibleMs) {
+          await wait(minimumVisibleMs - elapsed)
+        }
+        setLoading(false)
       }
     })
 

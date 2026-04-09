@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useFinance } from '../context/FinanceContext'
-import { toast } from 'sonner'
+import { toast } from './useToast'
 import { parseDateValue, toDateKey } from '../utils/date'
 
 export function useFinancialAI() {
@@ -11,6 +11,8 @@ export function useFinancialAI() {
   const generateInsights = useCallback(() => {
     const thisMonth = new Date()
     const startOfMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 1)
+    const daysInMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 0).getDate()
+    const remainingDays = Math.max(daysInMonth - thisMonth.getDate(), 0)
 
     const monthlyTransactions = visibleTransactions.filter((t) => {
       const tDate = parseDateValue(t.createdAt || t.created_at || t.date || t.transaction_date)
@@ -40,6 +42,26 @@ export function useFinancialAI() {
     })
 
     const newRecommendations = []
+    const orderedDailyExpenseValues = Object.entries(dailyExpenses)
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([, value]) => value)
+    const recentDailyValues = orderedDailyExpenseValues.slice(-7)
+    const previousDailyValues = orderedDailyExpenseValues.slice(-14, -7)
+    const recentDailyAverage = recentDailyValues.length
+      ? recentDailyValues.reduce((sum, value) => sum + value, 0) / recentDailyValues.length
+      : 0
+    const previousDailyAverage = previousDailyValues.length
+      ? previousDailyValues.reduce((sum, value) => sum + value, 0) / previousDailyValues.length
+      : 0
+    const baselineDailyAverage = recentDailyAverage || (
+      Object.values(dailyExpenses).length
+        ? Object.values(dailyExpenses).reduce((sum, value) => sum + value, 0) / Object.values(dailyExpenses).length
+        : 0
+    )
+    const projectedMonthExpense = totalExpenses + baselineDailyAverage * remainingDays
+    const trendChangePercent = previousDailyAverage > 0
+      ? ((recentDailyAverage - previousDailyAverage) / previousDailyAverage) * 100
+      : 0
     const newInsights = {
       totalIncome,
       totalExpenses,
@@ -47,6 +69,9 @@ export function useFinancialAI() {
       savingsRate: totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0,
       categoryExpenses,
       dailyExpenses,
+      recentDailyAverage,
+      projectedMonthExpense,
+      trendChangePercent,
     }
 
     // Análise 1: Identificar categoria com maior gasto
@@ -146,6 +171,26 @@ export function useFinancialAI() {
         description: `Com sua renda atual, você poderia poupar até R$ ${suggestedSavings} por mês (30% da renda).`,
         priority: 'medium',
         action: 'Estabelecer meta',
+      })
+    }
+
+    if (projectedMonthExpense > totalIncome && totalIncome > 0) {
+      newRecommendations.push({
+        id: 'monthly_forecast_overrun',
+        type: 'warning',
+        title: 'Previsão de estouro no mês',
+        description: `Com a média atual de gastos, o mês pode fechar em aproximadamente R$ ${projectedMonthExpense.toFixed(2)}, acima da renda estimada.`,
+        priority: 'high',
+        action: 'Revisar gastos futuros',
+      })
+    } else if (trendChangePercent > 15) {
+      newRecommendations.push({
+        id: 'monthly_forecast_growth',
+        type: 'info',
+        title: 'Tendência de gasto em alta',
+        description: `Os gastos diários recentes estão ${trendChangePercent.toFixed(0)}% acima do período anterior. Acompanhe os próximos dias com mais atenção.`,
+        priority: 'medium',
+        action: 'Acompanhar tendência',
       })
     }
 

@@ -11,6 +11,8 @@ export default function Logo({ animated = true, size = 'medium' }) {
   }
 
   const { width, height } = sizes[size]
+  const shieldGradientId = 'logoShieldGradient'
+  const barsGradientId = 'logoBarsGradient'
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -103,11 +105,11 @@ export default function Logo({ animated = true, size = 'medium' }) {
     >
       <defs>
         <linearGradient id="logoShieldGradient" x1="24" y1="20" x2="96" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#38bdf8" />
+          <stop offset="0%" style={{ stopColor: 'var(--accent-strong)' }} />
+          <stop offset="100%" style={{ stopColor: 'var(--accent-hex)' }} />
         </linearGradient>
         <linearGradient id="logoBarsGradient" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor="#bbf7d0" />
+          <stop offset="0%" style={{ stopColor: 'rgb(var(--accent-soft-rgb) / 1)' }} />
           <stop offset="100%" stopColor="#ffffff" />
         </linearGradient>
       </defs>
@@ -116,7 +118,7 @@ export default function Logo({ animated = true, size = 'medium' }) {
         cx="60"
         cy="57"
         r="34"
-        fill="rgba(56,189,248,0.15)"
+        style={{ fill: 'rgb(var(--accent-rgb) / 0.15)' }}
         variants={animated ? glowVariants : {}}
       />
 
@@ -124,7 +126,7 @@ export default function Logo({ animated = true, size = 'medium' }) {
         <motion.path
           d="M 30 30 Q 60 15 60 15 Q 60 15 90 30 L 90 55 Q 90 85 60 95 Q 30 85 30 55 Z"
           fill="none"
-          stroke="url(#logoShieldGradient)"
+          stroke={`url(#${shieldGradientId})`}
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -147,7 +149,7 @@ export default function Logo({ animated = true, size = 'medium' }) {
             y="60"
             width="8"
             height="20"
-            fill="url(#logoBarsGradient)"
+            fill={`url(#${barsGradientId})`}
             rx="1"
             variants={animated ? barVariants : {}}
           />
@@ -157,7 +159,7 @@ export default function Logo({ animated = true, size = 'medium' }) {
             y="50"
             width="8"
             height="30"
-            fill="url(#logoBarsGradient)"
+            fill={`url(#${barsGradientId})`}
             rx="1"
             variants={animated ? barVariants : {}}
             transition={{ delay: 0.1, duration: 0.8 }}
@@ -168,7 +170,7 @@ export default function Logo({ animated = true, size = 'medium' }) {
             y="55"
             width="8"
             height="25"
-            fill="url(#logoBarsGradient)"
+            fill={`url(#${barsGradientId})`}
             rx="1"
             variants={animated ? barVariants : {}}
             transition={{ delay: 0.2, duration: 0.8 }}

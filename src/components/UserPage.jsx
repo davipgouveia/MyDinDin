@@ -24,9 +24,10 @@ export function UserPage({
 }) {
   const [budgetCategory, setBudgetCategory] = useState('Outros')
   const [budgetLimit, setBudgetLimit] = useState('')
-  const { theme, language, accent, density, toggleTheme, setLanguage, setAccent, setDensity, t } = usePreferences()
+  const { theme, language, accent, density, layoutMode, toggleTheme, setLanguage, setAccent, setDensity, setLayoutMode, t } = usePreferences()
   const isLight = theme === 'light'
   const isCompact = density === 'compact'
+  const isFocusLayout = layoutMode === 'focus'
 
   const profileName = profile?.full_name || user?.email || 'Usuário'
   const initials = profileName
@@ -112,7 +113,7 @@ export function UserPage({
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-semibold text-white">{profileName}</h2>
               <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                Perfil
+                {t('profile')}
               </span>
             </div>
             <p className={`mt-1 text-sm ${textMutedClass}`}>{user?.email || 'Conta autenticada no Supabase'}</p>
@@ -127,7 +128,7 @@ export function UserPage({
               <div className={`rounded-2xl border ${isCompact ? 'p-2.5' : 'p-3'} ${surfaceSoftClass}`}>
                 <div className={`flex items-center gap-2 text-xs uppercase tracking-[0.18em] ${textMutedClass}`}>
                   <BadgeCheck size={14} />
-                  Grupo
+                  {t('group')}
                 </div>
                 <p className={`mt-2 text-sm font-medium ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{profile?.group_id || 'Não informado'}</p>
               </div>
@@ -136,7 +137,7 @@ export function UserPage({
         </div>
       </motion.div>
 
-      <div className={`grid gap-3 ${isCompact ? 'sm:grid-cols-2' : 'sm:grid-cols-2'}`}>
+      <div className={`grid gap-3 ${isFocusLayout ? 'sm:grid-cols-1' : 'sm:grid-cols-2'}`}>
         <div className={`rounded-2xl border ${isCompact ? 'p-3' : 'p-4'} ${surfaceClass}`}>
           <div className={`flex items-center gap-2 text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
             <Shield size={16} className="text-cyan-400" />
@@ -210,6 +211,19 @@ export function UserPage({
             </div>
 
             <div>
+              <label className={`mb-1 block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('layout')}</label>
+              <select
+                value={layoutMode}
+                onChange={(event) => setLayoutMode(event.target.value)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-cyan-400"
+              >
+                <option value="balanced">{t('balancedLayout')}</option>
+                <option value="focus">{t('focusLayout')}</option>
+                <option value="expanded">{t('expandedLayout')}</option>
+              </select>
+            </div>
+
+            <div>
               <label className={`mb-1 block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('user')}</label>
               <select
                 value={ownerFilter}
@@ -218,7 +232,7 @@ export function UserPage({
               >
                 {users.map((item) => (
                   <option key={item} value={item}>
-                    {item === 'Todos' ? 'Total do casal' : item}
+                    {item === 'Todos' ? t('coupleTotal') : item}
                   </option>
                 ))}
               </select>

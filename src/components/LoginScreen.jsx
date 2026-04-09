@@ -1,11 +1,13 @@
 import Logo from './Logo'
+import { AppFooter } from './AppFooter'
 import { usePreferences } from '../context/PreferencesContext'
 
 export function LoginScreen({ children, variant = 'signin' }) {
-  const { theme, accent, density } = usePreferences()
+  const { theme, accent, density, layoutMode } = usePreferences()
   const isSignUp = variant === 'signup'
   const isLight = theme === 'light'
   const isCompact = density === 'compact'
+  const isFocusLayout = layoutMode === 'focus'
   const accentGlowClass =
     accent === 'emerald'
       ? 'bg-emerald-400/15'
@@ -32,7 +34,7 @@ export function LoginScreen({ children, variant = 'signin' }) {
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center justify-center">
-        <div className={`grid w-full ${isCompact ? 'gap-6' : 'gap-8'} xl:grid-cols-[1.05fr_0.95fr] xl:items-center`}>
+        <div className={`grid w-full ${isCompact ? 'gap-6' : 'gap-8'} ${isFocusLayout ? 'xl:grid-cols-1' : 'xl:grid-cols-[1.05fr_0.95fr]'} xl:items-center`}>
           <section className={`flex flex-col items-start rounded-[2rem] border ${isCompact ? 'gap-4 p-5' : 'gap-6 p-6'} shadow-2xl backdrop-blur-xl sm:p-8 ${isLight ? 'border-slate-200 bg-white/80 text-slate-900' : 'border-white/10 bg-white/8 text-white'}`}>
             <div
               className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-medium tracking-[0.24em] uppercase ${
@@ -91,6 +93,7 @@ export function LoginScreen({ children, variant = 'signin' }) {
           </section>
         </div>
       </div>
+      <AppFooter className="relative mt-4" />
     </main>
   )
 }

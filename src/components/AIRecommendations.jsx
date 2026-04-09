@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Lightbulb, TrendingUp, AlertTriangle, CheckCircle, Info } from 'lucide-react'
+import { formatCurrency } from '../utils/format'
 
-export function AIRecommendationsPanel({ recommendations = [], onDismiss = () => {} }) {
+export function AIRecommendationsPanel({ recommendations = [], insights = {}, onDismiss = () => {} }) {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -81,6 +82,30 @@ export function AIRecommendationsPanel({ recommendations = [], onDismiss = () =>
         <Lightbulb size={18} className="text-cyan-400" />
         <h3 className="text-sm font-semibold text-slate-300">Recomendações de IA</h3>
       </div>
+
+      {insights.projectedMonthExpense ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">Previsão do mês</p>
+              <h4 className="mt-1 text-sm font-semibold text-slate-100">{formatCurrency(insights.projectedMonthExpense)}</h4>
+            </div>
+            <TrendingUp size={18} className="text-cyan-300" />
+          </div>
+          <p className="mt-2 text-xs text-slate-400">
+            Baseado no ritmo atual de gastos, o modelo estima esse fechamento mensal.
+          </p>
+          {typeof insights.trendChangePercent === 'number' && insights.trendChangePercent !== 0 && (
+            <p className="mt-1 text-xs text-slate-400">
+              Tendência recente: {insights.trendChangePercent > 0 ? '+' : ''}{insights.trendChangePercent.toFixed(0)}% na média diária.
+            </p>
+          )}
+        </motion.div>
+      ) : null}
 
       <AnimatePresence>
         {recommendations.map((rec) => (

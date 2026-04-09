@@ -143,6 +143,13 @@
 - [x] Gestão de orçamentos compartilhados na página de usuário
 - [x] Webhook de alertas com envio para lembretes urgentes e botão de teste
 - [x] Gráficos avançados com Recharts na aba de estatísticas
+- [x] Footer padrão com versão exibida em todas as telas
+- [x] Fluxo desktop de adição unificado com seleção de despesa/receita (igual ao mobile)
+- [x] Tradução de rótulos de grupo nas telas e filtros
+- [x] Botões de ajuda "?" com explicação breve dos principais campos
+- [x] Loading overlay animado com logo em looping
+- [x] Primeira previsão de IA com tendência de gastos do mês
+- [x] Chat com IA financeira contextual
 
 ---
 
@@ -155,10 +162,10 @@
    - [x] Compartilhamento de orçamentos entre usuários
 
 ### 2. **Melhorias na IA**
-   - [ ] Machine Learning para padrões de gastos
-   - [ ] Previsão de próximos gastos
-   - [ ] Análise de sazonalidade
-   - [ ] Recomendações personalizadas por padrão
+   - [x] Machine Learning para padrões de gastos
+   - [x] Previsão de próximos gastos
+   - [x] Análise de sazonalidade
+   - [x] Recomendações personalizadas por padrão
 
 ### 3. **Relatórios & Exportação**
    - [x] Gerar PDF de relatórios mensais
@@ -192,8 +199,10 @@
 
 ### 8. **Temas & Personalização**
    - [x] Tema claro/escuro avançado
-   - [x] Customização de cores
-   - [x] Layouts alternativos
+   - [ ] Botão de excluir categorias
+   - [ ] Melhorar Tema claro/escuro avançado, aplcar nos botões, logo e demais elementos
+   - [ ] Customização de cores aplcar nos botões, logo e demais elementos
+   - [ ] Dar mais opções de Layouts alternativos
    - [x] Idiomas (i18n)
 
 ---
@@ -343,7 +352,7 @@ Veja `CompleteIntegrationExample.jsx` para exemplos práticos
 
 **Resumo da Implementação:**
 - **Data**: Abril de 2026
-- **Versão**: Versione corretamente a cada atualização.
+- **Versão**: 2.2.0
 - **Status**: ✅ COMPLETO
 - **Tempo de Desenvolvimento**: Otimizado
 - **Qualidade**: Produção-ready

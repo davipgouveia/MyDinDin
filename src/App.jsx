@@ -2,32 +2,35 @@
 
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { LoaderCircle, Plus, ServerCrash, Settings } from 'lucide-react'
+import { Plus, ServerCrash, Settings } from 'lucide-react'
 import { motion } from 'framer-motion'
 import SummaryCard from './components/SummaryCard'
 import TransactionItem from './components/TransactionItem'
-import TransactionModal from './components/TransactionModal'
 import { LoginScreen } from './components/LoginScreen'
 import Logo from './components/Logo'
 import { AdvancedStatsCharts, DailyStatsCard, MonthlyStatsCard } from './components/StatsCards'
 import { PaymentRemindersSection, RecurringPaymentsSection } from './components/RemindersSection'
 import { CategoriesManager } from './components/CategoriesManager'
 import { AIRecommendationsPanel, BudgetAlertPanel } from './components/AIRecommendations'
+import { FinanceChatPanel } from './components/FinanceChatPanel'
 import { AdvancedTransactionModal } from './components/AdvancedTransactionModal'
 import { MobileBottomNav } from './components/MobileBottomNav'
 import { QuickAddSheet } from './components/QuickAddSheet'
 import { UserPage } from './components/UserPage'
+import { AppFooter } from './components/AppFooter'
+import { HelpHint } from './components/HelpHint'
+import { LoadingOverlay } from './components/LoadingOverlay'
 import { useFinance } from './context/FinanceContext'
 import { TransactionCategoryProvider, useTransactionCategory } from './context/TransactionCategoryContext'
 import { useFinancialAI, useFinancialBudget } from './hooks/useFinancialAI'
 import { ToastProvider, toast } from './hooks/useToast'
 import { isResendConfigured } from './lib/resend'
+import { APP_BUILD_LABEL } from './constants/appMeta'
 import { usePreferences } from './context/PreferencesContext'
 
 const palette = ['#06b6d4', '#22c55e', '#f97316', '#eab308', '#ef4444', '#8b5cf6']
 
 function DashboardContent() {
-  const [modalOpen, setModalOpen] = useState(false)
   const [advancedModalOpen, setAdvancedModalOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
@@ -41,14 +44,14 @@ function DashboardContent() {
     recurringPayments,
     removeRecurringPayment,
     addCustomCategory,
+    removeCustomCategory,
     getOrderedCategories,
   } = useTransactionCategory()
 
-  const { recommendations, dismissRecommendation } = useFinancialAI()
+  const { recommendations, insights, dismissRecommendation } = useFinancialAI()
   const { budgets, addBudget, removeBudget, getBudgetStatus } = useFinancialBudget()
 
   const {
-    submitting,
     error,
     setError,
     profile,
@@ -66,8 +69,16 @@ function DashboardContent() {
     deleteTransaction,
     addTransactionComment,
   } = useFinance()
-  const { theme, t, toggleTheme } = usePreferences()
+  const { theme, layoutMode, t, toggleTheme } = usePreferences()
   const isLight = theme === 'light'
+  const shellWidthStyle = {
+    maxWidth:
+      layoutMode === 'focus'
+        ? '64rem'
+        : layoutMode === 'expanded'
+          ? '90rem'
+          : '80rem',
+  }
 
   const shellClass = isLight ? 'bg-slate-50 text-slate-900' : 'bg-slate-950 text-white'
   const headerClass = isLight ? 'border-slate-200 bg-white/85 text-slate-900 shadow-slate-200/50' : 'border-slate-800/80 bg-slate-950/70 text-white'
@@ -140,7 +151,10 @@ function DashboardContent() {
   ]
 
   return (
-    <main className={`mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-4 px-3 pb-36 pt-3 sm:px-4 md:px-6 md:pb-8 md:pt-6 ${shellClass}`}>
+    <main
+      className={`mx-auto flex min-h-screen w-full flex-col gap-4 px-3 pb-36 pt-3 sm:px-4 md:px-6 md:pb-8 md:pt-6 ${shellClass}`}
+      style={shellWidthStyle}
+    >
       <header className={`rounded-[1.75rem] border p-4 shadow-xl backdrop-blur-xl md:p-5 ${headerClass}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -152,7 +166,7 @@ function DashboardContent() {
               <p className={`text-sm ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>{t('appSubtitle')}</p>
               <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
                 <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 text-cyan-300">
-                  v2.0 enterprise
+                  {APP_BUILD_LABEL}
                 </span>
                 <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
                   Resend {isResendConfigured() ? 'ativo' : 'pendente'}
@@ -164,7 +178,7 @@ function DashboardContent() {
           <button
             type="button"
             onClick={() => setShowSettings((current) => !current)}
-            className="rounded-xl border border-slate-700 bg-slate-900/70 p-2.5 text-slate-300 transition hover:border-slate-500 hover:text-white"
+            className="button-secondary rounded-xl border p-2.5 text-slate-300"
             aria-label={t('settings')}
             title={t('settings')}
           >
@@ -182,7 +196,7 @@ function DashboardContent() {
             <button
               type="button"
               onClick={toggleTheme}
-              className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-cyan-500/40 hover:text-white"
+              className="button-secondary rounded-xl px-3 py-2 text-xs font-medium text-slate-300"
             >
               {t('themeToggle')}
             </button>
@@ -247,7 +261,7 @@ function DashboardContent() {
                 >
                   {users.map((item) => (
                     <option key={item} value={item}>
-                      {item === 'Todos' ? 'Total do casal' : item}
+                      {item === 'Todos' ? t('coupleTotal') : item}
                     </option>
                   ))}
                 </select>
@@ -331,6 +345,7 @@ function DashboardContent() {
             onAddCustom={(category) => {
               addCustomCategory(category)
             }}
+            onRemoveCustom={removeCustomCategory}
           />
         </motion.section>
       )}
@@ -363,8 +378,15 @@ function DashboardContent() {
 
       {activePage === 'ai' && (
         <section className="space-y-4">
+          <FinanceChatPanel
+            insights={insights}
+            recommendations={recommendations}
+            budgets={getBudgetStatus || []}
+            transactions={visibleTransactions}
+          />
+
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <AIRecommendationsPanel recommendations={recommendations} onDismiss={dismissRecommendation} />
+            <AIRecommendationsPanel recommendations={recommendations} insights={insights} onDismiss={dismissRecommendation} />
           </motion.div>
 
           {getBudgetStatus && getBudgetStatus.length > 0 && (
@@ -396,31 +418,15 @@ function DashboardContent() {
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.94 }}
         type="button"
-        onClick={() => setModalOpen(true)}
-        className="fixed bottom-6 right-6 hidden rounded-full bg-cyan-500 p-4 text-slate-950 shadow-glow transition hover:bg-cyan-400 md:flex"
-        aria-label="Adicionar transação rápida"
-      >
-        <Plus size={24} />
-      </motion.button>
-
-      <motion.button
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.94 }}
-        type="button"
-        onClick={() => {
-          setTransactionType('expense')
-          setAdvancedModalOpen(true)
-        }}
-        className="fixed bottom-24 right-6 hidden rounded-full bg-blue-600 p-4 text-white shadow-glow transition hover:bg-blue-500 md:flex"
-        aria-label="Adicionar transação avançada"
-        title="Modo avançado com mais opções"
+        onClick={() => setQuickAddOpen(true)}
+        className="button-primary fixed bottom-6 right-6 hidden rounded-full p-4 shadow-glow md:flex"
+        aria-label="Escolher tipo de transação"
+        title="Escolher despesa ou receita"
       >
         <Plus size={24} />
       </motion.button>
 
       <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onSelectType={openQuickAdd} />
-
-      <TransactionModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={addTransaction} submitting={submitting} />
 
       <AdvancedTransactionModal
         isOpen={advancedModalOpen}
@@ -430,6 +436,7 @@ function DashboardContent() {
       />
 
       <MobileBottomNav activePage={activePage} onNavigate={setActivePage} onQuickAdd={() => setQuickAddOpen(true)} />
+      <AppFooter className="mt-2 pb-2 md:pb-0" />
     </main>
   )
 }
@@ -450,17 +457,12 @@ export default function App() {
             </div>
             <p className="text-sm text-slate-300">
               Crie um arquivo <strong>.env</strong> na raiz com as variáveis <strong>VITE_SUPABASE_URL</strong>
-              {' '}e <strong>VITE_SUPABASE_ANON_KEY</strong>, depois reinicie o <strong>npm run dev</strong>.
+              {' '}e <strong>NEXT_PUBLIC_SUPABASE_ANON_KEY</strong>, depois reinicie o <strong>npm run dev</strong>.
             </p>
           </section>
         </main>
       ) : loading ? (
-        <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center p-4">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3">
-            <LoaderCircle className="animate-spin text-cyan-400" size={18} />
-            <span className="text-sm text-slate-300">Conectando com Supabase...</span>
-          </div>
-        </main>
+        <LoadingOverlay />
       ) : !user ? (
         <SignInView />
       ) : !profile ? (
@@ -585,7 +587,7 @@ function SignInView() {
               onClick={handlePasswordReset}
               className="text-sm text-slate-300 underline-offset-2 transition hover:text-cyan-300 hover:underline"
             >
-              Esqueci minha senha
+              {t('forgotPassword')}
             </button>
           )}
         </div>
@@ -619,29 +621,41 @@ function SetupView() {
         <p className="mt-1 text-sm text-slate-400">{t('setupGroupSubtitle')}</p>
 
         <form className="mt-5 space-y-3" onSubmit={handleSetupSubmit}>
-          <input
-            required
-            type="text"
-            placeholder="Nome do grupo"
-            value={setupForm.groupName}
-            onChange={(event) => setSetupForm((prev) => ({ ...prev, groupName: event.target.value }))}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-          />
-          <input
-            required
-            type="text"
-            placeholder="Seu nome completo"
-            value={setupForm.fullName}
-            onChange={(event) => setSetupForm((prev) => ({ ...prev, fullName: event.target.value }))}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-          />
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-300">{t('groupNameLabel')}</label>
+              <HelpHint text={t('groupNameHint')} />
+            </div>
+            <input
+              required
+              type="text"
+              placeholder={t('groupNameLabel')}
+              value={setupForm.groupName}
+              onChange={(event) => setSetupForm((prev) => ({ ...prev, groupName: event.target.value }))}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+            />
+          </div>
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-300">{t('fullNameLabel')}</label>
+              <HelpHint text={t('fullNameHint')} />
+            </div>
+            <input
+              required
+              type="text"
+              placeholder={t('fullNameLabel')}
+              value={setupForm.fullName}
+              onChange={(event) => setSetupForm((prev) => ({ ...prev, fullName: event.target.value }))}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+            />
+          </div>
 
           <button
             type="submit"
             disabled={submitting}
             className="w-full rounded-lg bg-cyan-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? 'Configurando...' : 'Criar grupo'}
+            {submitting ? t('configuringGroup') : t('createGroup')}
           </button>
         </form>
 

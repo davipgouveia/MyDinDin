@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { X, Plus } from 'lucide-react'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, FREQUENCY_OPTIONS } from '../constants/categories'
+import { HelpHint } from './HelpHint'
 
 export function AdvancedTransactionModal({
   isOpen = false,
@@ -128,7 +129,10 @@ export function AdvancedTransactionModal({
             </div>
 
             <div className="mb-4">
-              <label className="text-xs font-medium text-slate-300">Descrição</label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-300">Descrição</label>
+                <HelpHint text="Descreva em poucas palavras o lançamento para facilitar buscas." />
+              </div>
               <input
                 type="text"
                 value={formData.description}
@@ -140,7 +144,10 @@ export function AdvancedTransactionModal({
             </div>
 
             <div className="mb-4">
-              <label className="text-xs font-medium text-slate-300">Valor (R$)</label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-300">Valor (R$)</label>
+                <HelpHint text="Valor total do lançamento. Use apenas números e centavos." />
+              </div>
               <input
                 type="number"
                 step="0.01"
@@ -154,7 +161,10 @@ export function AdvancedTransactionModal({
             </div>
 
             <div className="mb-4">
-              <label className="text-xs font-medium text-slate-300">Categoria</label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-300">Categoria</label>
+                <HelpHint text="Escolha a categoria correta para melhorar estatísticas e alertas." />
+              </div>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {categories.map((category) => (
                   <motion.button
@@ -178,7 +188,10 @@ export function AdvancedTransactionModal({
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="text-xs font-medium text-slate-300">Data</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-slate-300">Data</label>
+                  <HelpHint text="Dia em que a receita/despesa ocorreu ou foi registrada." />
+                </div>
                 <input
                   type="date"
                   value={formData.date}
@@ -188,7 +201,10 @@ export function AdvancedTransactionModal({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-300">Vencimento (opcional)</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-slate-300">Vencimento (opcional)</label>
+                  <HelpHint text="Use para contas a pagar; ajuda nos lembretes de prazo." />
+                </div>
                 <input
                   type="date"
                   value={formData.dueDate}
@@ -198,7 +214,10 @@ export function AdvancedTransactionModal({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-300">Pagamento</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-slate-300">Pagamento</label>
+                  <HelpHint text="Escolha como o lançamento foi pago para manter o histórico mais completo." />
+                </div>
                 <select
                   value={formData.paymentMethod}
                   onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
@@ -237,6 +256,7 @@ export function AdvancedTransactionModal({
               <label htmlFor="recurring" className="cursor-pointer text-xs font-medium text-slate-300">
                 Pagamento recorrente
               </label>
+              <HelpHint text="Ative quando o lançamento se repetir em intervalos fixos, como mensalmente." />
             </div>
 
             {formData.isRecurring && (
@@ -272,7 +292,10 @@ export function AdvancedTransactionModal({
             )}
 
             <div className="mb-6">
-              <label className="text-xs font-medium text-slate-300">Notas</label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-300">Notas</label>
+                <HelpHint text="Use este campo para observações extras que ajudem no controle futuro." />
+              </div>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}

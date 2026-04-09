@@ -3,7 +3,7 @@ import { useFinance } from './FinanceContext'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants/categories'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { isWebhookConfigured, sendWebhookAlert } from '../lib/webhookAlerts'
-import { toast } from 'sonner'
+import { toast } from '../hooks/useToast'
 import { parseDateValue } from '../utils/date'
 
 const TransactionCategoryContext = createContext(null)

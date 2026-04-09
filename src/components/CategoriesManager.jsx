@@ -1,8 +1,13 @@
 import { motion, Reorder } from 'framer-motion'
-import { Plus, GripVertical } from 'lucide-react'
+import { Plus, GripVertical, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-export function CategoriesManager({ categories = [], onReorder = () => {}, onAddCustom = () => {} }) {
+export function CategoriesManager({
+  categories = [],
+  onReorder = () => {},
+  onAddCustom = () => {},
+  onRemoveCustom = () => {},
+}) {
   const [isReordering, setIsReordering] = useState(false)
   const [items, setItems] = useState(categories)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -26,6 +31,11 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
       setNewCategory({ name: '', color: '#0369a1', icon: '📌' })
       setShowAddForm(false)
     }
+  }
+
+  const handleRemoveCategory = (categoryId) => {
+    setItems((prev) => prev.filter((item) => item.id !== categoryId))
+    onRemoveCustom(categoryId)
   }
 
   const containerVariants = {
@@ -127,7 +137,18 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
                   <div className="flex-1">
                     <p className="text-sm font-medium text-slate-200">{category.name}</p>
                   </div>
-                  {category.isCustom && <span className="text-xs text-blue-400">Custom</span>}
+                  {category.isCustom ? (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCategory(category.id)}
+                      className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-300 transition hover:bg-red-500/20"
+                      title="Excluir categoria personalizada"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  ) : (
+                    <span className="text-xs text-blue-400">Padrão</span>
+                  )}
                 </motion.div>
               </Reorder.Item>
             ))}
@@ -152,6 +173,16 @@ export function CategoriesManager({ categories = [], onReorder = () => {}, onAdd
                 <p className="text-lg">{category.icon}</p>
                 <p className="text-xs text-slate-400">{category.name}</p>
               </div>
+              {category.isCustom && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveCategory(category.id)}
+                  className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-300 transition hover:bg-red-500/20"
+                  title="Excluir categoria personalizada"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
             </motion.div>
           ))}
         </motion.div>

@@ -27,7 +27,7 @@ export function MobileBottomNav({ activePage, onNavigate, onQuickAdd }) {
                 whileTap={{ scale: 0.92 }}
                 type="button"
                 onClick={onQuickAdd}
-                className="mx-auto flex h-14 w-14 -translate-y-4 items-center justify-center rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-cyan-400 to-blue-500 text-slate-950 shadow-[0_12px_30px_rgba(34,211,238,0.35)]"
+                className="button-primary mx-auto flex h-14 w-14 -translate-y-4 items-center justify-center rounded-2xl shadow-[0_12px_30px_rgba(34,211,238,0.35)]"
                 aria-label="Adicionar transação"
               >
                 <Plus size={24} strokeWidth={2.6} />

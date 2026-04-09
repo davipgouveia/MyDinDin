@@ -4,6 +4,36 @@
 
 :root {
   font-family: 'Space Grotesk', 'Segoe UI', Tahoma, sans-serif;
+  --accent-rgb: 6 182 212;
+  --accent-strong-rgb: 56 189 248;
+  --accent-soft-rgb: 34 211 238;
+  --accent-hex: #06b6d4;
+  --accent-strong: #38bdf8;
+  --layout-max-width: 80rem;
+}
+
+html[data-accent='emerald'] {
+  --accent-rgb: 16 185 129;
+  --accent-strong-rgb: 52 211 153;
+  --accent-soft-rgb: 110 231 183;
+  --accent-hex: #10b981;
+  --accent-strong: #34d399;
+}
+
+html[data-accent='amber'] {
+  --accent-rgb: 245 158 11;
+  --accent-strong-rgb: 251 191 36;
+  --accent-soft-rgb: 253 224 71;
+  --accent-hex: #f59e0b;
+  --accent-strong: #fbbf24;
+}
+
+html[data-layout='focus'] {
+  --layout-max-width: 64rem;
+}
+
+html[data-layout='expanded'] {
+  --layout-max-width: 90rem;
 }
 
 html[data-theme='light'] {
@@ -20,6 +50,10 @@ body {
     linear-gradient(180deg, #020617 0%, #0f172a 100%);
   background-attachment: fixed;
   transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+html[data-density='compact'] body {
+  letter-spacing: 0.01em;
 }
 
 html[data-theme='light'] body {
@@ -135,14 +169,18 @@ html[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
 @layer components {
   .card-gradient {
     @apply rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-4 backdrop-blur-sm;
+    box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.05), 0 24px 64px rgb(2 6 23 / 0.22);
   }
 
   .button-primary {
-    @apply rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 font-medium text-white transition-all duration-300 hover:from-cyan-600 hover:to-blue-600 active:scale-95;
+    @apply rounded-lg px-4 py-2 font-medium text-slate-950 transition-all duration-300 active:scale-95;
+    background-image: linear-gradient(135deg, rgb(var(--accent-rgb) / 1), rgb(var(--accent-strong-rgb) / 1));
+    box-shadow: 0 12px 30px rgb(var(--accent-rgb) / 0.28);
   }
 
   .button-secondary {
-    @apply rounded-lg border border-slate-600 bg-slate-800/50 px-4 py-2 font-medium text-slate-300 transition-all duration-300 hover:bg-slate-700 active:scale-95;
+    @apply rounded-lg border border-slate-600 bg-slate-800/50 px-4 py-2 font-medium text-slate-300 transition-all duration-300 active:scale-95;
+    border-color: rgb(var(--accent-rgb) / 0.18);
   }
 
   .input-field {
@@ -150,7 +188,8 @@ html[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
   }
 
   .text-gradient {
-    @apply bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(90deg, rgb(var(--accent-soft-rgb) / 1), rgb(var(--accent-strong-rgb) / 1));
   }
 }
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { HelpHint } from './HelpHint'
 
 const defaultForm = {
   description: '',
@@ -46,27 +47,43 @@ export default function TransactionModal({ open, onClose, onSave, submitting = f
         </header>
 
         <form className="space-y-3" onSubmit={handleSubmit}>
-          <input
-            required
-            type="text"
-            placeholder="Descricao"
-            value={form.description}
-            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-          />
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-300">Descrição</label>
+              <HelpHint text="Nome curto para identificar esta transação no histórico." />
+            </div>
+            <input
+              required
+              type="text"
+              placeholder="Descricao"
+              value={form.description}
+              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+            />
+          </div>
 
-          <input
-            required
-            type="number"
-            min="0.01"
-            step="0.01"
-            placeholder="Valor"
-            value={form.amount}
-            onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-          />
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-300">Valor</label>
+              <HelpHint text="Informe o valor em reais. Use ponto para centavos, ex: 24.90." />
+            </div>
+            <input
+              required
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="Valor"
+              value={form.amount}
+              onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+            />
+          </div>
 
           <div className="grid grid-cols-1 gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-300">Tipo</label>
+              <HelpHint text="Escolha se esta transação será uma entrada ou uma despesa." />
+            </div>
             <select
               value={form.type}
               onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value }))}
@@ -77,21 +94,37 @@ export default function TransactionModal({ open, onClose, onSave, submitting = f
             </select>
           </div>
 
-          <input
-            type="text"
-            placeholder="Categoria"
-            value={form.category}
-            onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-          />
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-300">Categoria</label>
+              <HelpHint text="Use a categoria para organizar relatórios e metas de orçamento." />
+            </div>
+            <input
+              type="text"
+              placeholder="Categoria"
+              value={form.category}
+              onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+            />
+          </div>
 
-          <input
-            type="date"
-            value={form.dueDate}
-            onChange={(event) => setForm((prev) => ({ ...prev, dueDate: event.target.value }))}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-          />
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-300">Vencimento</label>
+              <HelpHint text="Use este campo para lembrar quando a conta vence. Pode ficar em branco." />
+            </div>
+            <input
+              type="date"
+              value={form.dueDate}
+              onChange={(event) => setForm((prev) => ({ ...prev, dueDate: event.target.value }))}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+            />
+          </div>
 
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-300">Pagamento concluído</label>
+            <HelpHint text="Marque quando a transação já estiver paga ou recebida." />
+          </div>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"

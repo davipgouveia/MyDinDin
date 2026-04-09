@@ -4,7 +4,7 @@
 - Use React function components and hooks.
 - Prefer Tailwind utility classes over CSS modules or styled-components.
 - Keep the UI mobile-first, dark, and consistent with the existing finance-dashboard look.
-- Reuse the current libraries and patterns: `lucide-react`, `framer-motion`, `sonner`, `recharts`, `date-fns`, and `zustand` when state needs justify it.
+- Reuse the current libraries and patterns: `lucide-react`, `framer-motion`, `sileo`, `recharts`, `date-fns`, and `zustand` when state needs justify it.
 - Keep copy in Portuguese unless the user explicitly asks to change the language.
 
 ## Architecture
@@ -25,5 +25,6 @@
 - Follow the existing offline-first fallback: the app should still work when Supabase is unavailable.
 - Keep async data loading resilient with bounded timeouts and graceful error handling.
 - Prefer the current component boundaries instead of merging unrelated logic into `App.jsx`.
+- Always update the displayed app version and `package.json` version when shipping changes.
 - Do not duplicate documentation in code comments; link to the existing docs instead.
 - Relevant docs: [README.md](README.md), [QUICK_START.md](QUICK_START.md), [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md), [NOVOS_RECURSOS.md](NOVOS_RECURSOS.md), [IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md), and [docs/ESTRUTURA_PROJETO.md](docs/ESTRUTURA_PROJETO.md).

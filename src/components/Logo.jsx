@@ -1,10 +1,13 @@
+"use client"
+
 import { motion } from 'framer-motion'
 
 export default function Logo({ animated = true, size = 'medium' }) {
   const sizes = {
-    small: { width: '40', height: '40' },
-    medium: { width: '80', height: '80' },
-    large: { width: '120', height: '120' },
+    small: { width: '52', height: '52' },
+    medium: { width: '96', height: '96' },
+    large: { width: '136', height: '136' },
+    xlarge: { width: '178', height: '178' },
   }
 
   const { width, height } = sizes[size]
@@ -67,6 +70,18 @@ export default function Logo({ animated = true, size = 'medium' }) {
     },
   }
 
+  const glowVariants = {
+    hidden: { opacity: 0.25 },
+    visible: {
+      opacity: [0.35, 0.85, 0.35],
+      transition: {
+        duration: 3,
+        repeat: Infinity,
+        ease: 'easeInOut',
+      },
+    },
+  }
+
   const Wrapper = animated ? motion.svg : 'svg'
   const wrapperProps = animated
     ? {
@@ -86,11 +101,30 @@ export default function Logo({ animated = true, size = 'medium' }) {
       xmlns="http://www.w3.org/2000/svg"
       {...wrapperProps}
     >
+      <defs>
+        <linearGradient id="logoShieldGradient" x1="24" y1="20" x2="96" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="100%" stopColor="#38bdf8" />
+        </linearGradient>
+        <linearGradient id="logoBarsGradient" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stopColor="#bbf7d0" />
+          <stop offset="100%" stopColor="#ffffff" />
+        </linearGradient>
+      </defs>
+
+      <motion.circle
+        cx="60"
+        cy="57"
+        r="34"
+        fill="rgba(56,189,248,0.15)"
+        variants={animated ? glowVariants : {}}
+      />
+
       <g>
         <motion.path
           d="M 30 30 Q 60 15 60 15 Q 60 15 90 30 L 90 55 Q 90 85 60 95 Q 30 85 30 55 Z"
           fill="none"
-          stroke="rgba(255,255,255,0.96)"
+          stroke="url(#logoShieldGradient)"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -113,7 +147,7 @@ export default function Logo({ animated = true, size = 'medium' }) {
             y="60"
             width="8"
             height="20"
-            fill="rgba(255,255,255,0.9)"
+            fill="url(#logoBarsGradient)"
             rx="1"
             variants={animated ? barVariants : {}}
           />
@@ -123,7 +157,7 @@ export default function Logo({ animated = true, size = 'medium' }) {
             y="50"
             width="8"
             height="30"
-            fill="rgba(255,255,255,0.95)"
+            fill="url(#logoBarsGradient)"
             rx="1"
             variants={animated ? barVariants : {}}
             transition={{ delay: 0.1, duration: 0.8 }}
@@ -134,7 +168,7 @@ export default function Logo({ animated = true, size = 'medium' }) {
             y="55"
             width="8"
             height="25"
-            fill="rgba(255,255,255,0.9)"
+            fill="url(#logoBarsGradient)"
             rx="1"
             variants={animated ? barVariants : {}}
             transition={{ delay: 0.2, duration: 0.8 }}
@@ -155,32 +189,29 @@ export default function Logo({ animated = true, size = 'medium' }) {
 
       <motion.text
         x="60"
-        y="105"
+        y="107"
         textAnchor="middle"
-        fontSize="8"
+        fontSize="7.6"
         fontWeight="700"
-        fontFamily="sans-serif"
-        fill="#ffffff"
-        letterSpacing="0.5"
+        fontFamily="'Trebuchet MS', 'Segoe UI', sans-serif"
+        fill="#e2f4ff"
+        letterSpacing="0.85"
         variants={animated ? textVariants : {}}
         transition={{ delay: 0.5 }}
+        animate={
+          animated
+            ? {
+                letterSpacing: [0.65, 1.05, 0.65],
+                transition: {
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                },
+              }
+            : undefined
+        }
       >
-        FINANÇAS
-      </motion.text>
-
-      <motion.text
-        x="60"
-        y="116"
-        textAnchor="middle"
-        fontSize="6"
-        fontWeight="600"
-        fontFamily="sans-serif"
-        fill="rgba(255,255,255,0.9)"
-        letterSpacing="1"
-        variants={animated ? textVariants : {}}
-        transition={{ delay: 0.6 }}
-      >
-        APP
+        MYDINDIN
       </motion.text>
     </Wrapper>
   )

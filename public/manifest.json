@@ -1,6 +1,6 @@
 {
-  "name": "FinançasAPP",
-  "short_name": "FinançasAPP",
+  "name": "MyDinDin",
+  "short_name": "MyDinDin",
   "description": "Gestão financeira multiusuário offline-first",
   "start_url": "/",
   "scope": "/",

@@ -1,6 +1,7 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useFinance } from '../context/FinanceContext'
 import { toast } from 'sonner'
+import { parseDateValue, toDateKey } from '../utils/date'
 
 export function useFinancialAI() {
   const { visibleTransactions } = useFinance()
@@ -12,7 +13,8 @@ export function useFinancialAI() {
     const startOfMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 1)
 
     const monthlyTransactions = visibleTransactions.filter((t) => {
-      const tDate = new Date(t.created_at)
+      const tDate = parseDateValue(t.createdAt || t.created_at || t.date || t.transaction_date)
+      if (!tDate) return false
       return tDate >= startOfMonth
     })
 
@@ -24,7 +26,9 @@ export function useFinancialAI() {
     monthlyTransactions.forEach((t) => {
       const amount = parseFloat(t.amount) || 0
       const category = t.category || 'outros'
-      const dateStr = new Date(t.created_at).toISOString().split('T')[0]
+      const dateStr = toDateKey(t.createdAt || t.created_at || t.date || t.transaction_date)
+
+      if (!dateStr) return
 
       if (t.type === 'expense') {
         totalExpenses += Math.abs(amount)
@@ -158,7 +162,7 @@ export function useFinancialAI() {
   }, [visibleTransactions])
 
   // Gerar insights automaticamente
-  useMemo(() => {
+  useEffect(() => {
     generateInsights()
   }, [visibleTransactions, generateInsights])
 
@@ -202,24 +206,20 @@ export function useFinancialAI() {
 }
 
 export function useFinancialBudget() {
-  const [budgets, setBudgets] = useState([])
-  const { visibleTransactions } = useFinance()
+  const {
+    visibleTransactions,
+    budgets,
+    createSharedBudget,
+    deleteSharedBudget,
+  } = useFinance()
 
-  const addBudget = (category, limit, period = 'mensal') => {
-    const budget = {
-      id: `budget_${Date.now()}`,
-      category,
-      limit,
-      period,
-      createdAt: new Date().toISOString(),
-    }
-    setBudgets((prev) => [...prev, budget])
-    toast.success(`Orçamento criado para ${category}`)
-    return budget
+  const addBudget = async (category, limit, period = 'mensal') => {
+    await createSharedBudget(category, limit, period)
+    toast.success(`Orçamento compartilhado criado para ${category}`)
   }
 
-  const removeBudget = (budgetId) => {
-    setBudgets((prev) => prev.filter((b) => b.id !== budgetId))
+  const removeBudget = async (budgetId) => {
+    await deleteSharedBudget(budgetId)
     toast.success('Orçamento removido')
   }
 

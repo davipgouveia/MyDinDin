@@ -1,12 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="Financeiro D e L">
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="MyDinDin">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#06b6d4"/>
-      <stop offset="100%" stop-color="#22c55e"/>
+    <linearGradient id="shieldStroke" x1="40" y1="28" x2="152" y2="164" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#22c55e" />
+    </linearGradient>
+    <linearGradient id="barFill" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#38bdf8" />
     </linearGradient>
   </defs>
-  <rect width="192" height="192" rx="42" fill="#0f172a"/>
-  <circle cx="96" cy="96" r="62" fill="none" stroke="url(#g)" stroke-width="16"/>
-  <path d="M66 110h60" stroke="#e2e8f0" stroke-width="12" stroke-linecap="round"/>
-  <path d="M96 62v66" stroke="#e2e8f0" stroke-width="12" stroke-linecap="round"/>
+  <rect width="192" height="192" rx="40" fill="#f1f5f9" />
+  <rect x="14" y="14" width="164" height="164" rx="34" fill="#e2e8f0" opacity="0.35" />
+  <path d="M48 50Q96 28 96 28Q96 28 144 50V92Q144 132 96 152Q48 132 48 92Z" fill="none" stroke="url(#shieldStroke)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M68 56Q96 46 124 56M62 74H130M68 90Q96 80 124 90M58 106H134" fill="none" stroke="#0f172a" stroke-opacity="0.55" stroke-width="3.5" stroke-linecap="round" />
+  <rect x="72" y="92" width="10" height="28" rx="2" fill="url(#barFill)" />
+  <rect x="89" y="78" width="10" height="42" rx="2" fill="url(#barFill)" />
+  <rect x="106" y="86" width="10" height="34" rx="2" fill="url(#barFill)" />
+  <path d="M120 92V72M113 79L120 72L127 79" fill="none" stroke="#0f172a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="96" y="160" text-anchor="middle" font-size="11" font-weight="800" font-family="Arial, sans-serif" fill="#0f172a" letter-spacing="0.4">MYDINDIN</text>
 </svg>

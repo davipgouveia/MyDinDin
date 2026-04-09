@@ -1,5 +1,5 @@
-const CACHE_NAME = 'financeirodl-cache-v1'
-const APP_SHELL = ['/', '/index.html', '/manifest.json', '/icons/icon-192.svg', '/icons/icon-512.svg']
+const CACHE_NAME = 'financeirodl-cache-v2'
+const APP_SHELL = ['/', '/manifest.json', '/icons/icon-192.svg', '/icons/icon-512.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)))
@@ -28,7 +28,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone))
           return networkResponse
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match('/'))
     }),
   )
 })

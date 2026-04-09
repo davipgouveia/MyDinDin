@@ -1,22 +1,14 @@
-const RESEND_API_URL = 'https://api.resend.com/emails'
-
 export function isResendConfigured() {
-  return Boolean(import.meta.env.VITE_RESEND_API_KEY && import.meta.env.VITE_RESEND_FROM_EMAIL)
+  return Boolean(process.env.NEXT_PUBLIC_RESEND_FROM_EMAIL)
 }
 
 export async function sendAlertEmail({ to, subject, html }) {
-  if (!isResendConfigured()) {
-    throw new Error('Resend nao configurado. Defina VITE_RESEND_API_KEY e VITE_RESEND_FROM_EMAIL.')
-  }
-
-  const response = await fetch(RESEND_API_URL, {
+  const response = await fetch('/api/resend/send', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${import.meta.env.VITE_RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: import.meta.env.VITE_RESEND_FROM_EMAIL,
       to: Array.isArray(to) ? to : [to],
       subject,
       html,

@@ -6,6 +6,5 @@
   <rect x="52" y="50" width="8" height="30" rx="1" fill="#ffffff" fill-opacity="0.95"/>
   <rect x="64" y="55" width="8" height="25" rx="1" fill="#ffffff" fill-opacity="0.9"/>
   <path d="M76 62V48M73 52L76 48L79 52" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="60" y="105" text-anchor="middle" font-size="8" font-weight="700" font-family="Arial, sans-serif" fill="#ffffff" letter-spacing="0.5">FINANÇAS</text>
-  <text x="60" y="116" text-anchor="middle" font-size="6" font-weight="600" font-family="Arial, sans-serif" fill="#ffffff" opacity="0.9" letter-spacing="1">APP</text>
+  <text x="60" y="111" text-anchor="middle" font-size="6" font-weight="700" font-family="Arial, sans-serif" fill="#ffffff" letter-spacing="0.3">MYDINDIN</text>
 </svg>

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, Plus } from 'lucide-react'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, FREQUENCY_OPTIONS } from '../constants/categories'
 
@@ -24,6 +24,24 @@ export function AdvancedTransactionModal({
   })
 
   const categories = transactionType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    setFormData({
+      description: '',
+      amount: '',
+      category: transactionType === 'expense' ? 'alimentacao' : 'salario',
+      date: new Date().toISOString().split('T')[0],
+      dueDate: '',
+      paymentMethod: 'credito',
+      isPaid: true,
+      isRecurring: false,
+      frequency: 'mensal',
+      endDate: '',
+      notes: '',
+    })
+  }, [isOpen, transactionType])
 
   const backdropVariants = {
     hidden: { opacity: 0 },
@@ -50,23 +68,28 @@ export function AdvancedTransactionModal({
     },
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onSubmit(formData)
-    setFormData({
-      description: '',
-      amount: '',
-      category: transactionType === 'expense' ? 'alimentacao' : 'salario',
-      date: new Date().toISOString().split('T')[0],
-      dueDate: '',
-      paymentMethod: 'credito',
-      isPaid: true,
-      isRecurring: false,
-      frequency: 'mensal',
-      endDate: '',
-      notes: '',
-    })
-    onClose()
+
+    try {
+      await Promise.resolve(onSubmit(formData))
+      setFormData({
+        description: '',
+        amount: '',
+        category: transactionType === 'expense' ? 'alimentacao' : 'salario',
+        date: new Date().toISOString().split('T')[0],
+        dueDate: '',
+        paymentMethod: 'credito',
+        isPaid: true,
+        isRecurring: false,
+        frequency: 'mensal',
+        endDate: '',
+        notes: '',
+      })
+      onClose()
+    } catch {
+      // O erro ja e tratado no contexto/toast; evita promise rejeitada sem tratamento.
+    }
   }
 
   return (

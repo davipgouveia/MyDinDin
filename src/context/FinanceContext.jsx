@@ -20,13 +20,16 @@ const withTimeout = async (promise, timeoutMs, timeoutMessage) => {
 
 const mapTransactionRow = (row) => ({
   id: row.id,
+  profileId: row.profile_id,
   description: row.note ?? 'Sem descricao',
   amount: Number(row.amount),
   type: row.type,
   category: row.category?.name ?? 'Outros',
   owner: row.profile?.full_name ?? 'Membro',
   date: row.transaction_date,
+  transaction_date: row.transaction_date,
   createdAt: row.created_at,
+  created_at: row.created_at,
   dueDate: row.due_date ?? null,
   isPaid: row.is_paid ?? true,
   paymentStatus: row.payment_status ?? null,
@@ -37,6 +40,9 @@ export function FinanceProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [members, setMembers] = useState([])
+  const [budgets, setBudgets] = useState([])
+  const [transactionComments, setTransactionComments] = useState({})
+  const [activityLogs, setActivityLogs] = useState([])
   const [ownerFilter, setOwnerFilter] = useState('Todos')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -70,7 +76,7 @@ export function FinanceProvider({ children }) {
   const loadTransactions = useCallback(async (groupId) => {
     const { data, error: txError } = await supabase
       .from('transactions')
-      .select('id, amount, type, transaction_date, due_date, is_paid, payment_status, note, created_at, profile:profiles(full_name), category:categories(name)')
+      .select('id, profile_id, amount, type, transaction_date, due_date, is_paid, payment_status, note, created_at, profile:profiles(full_name), category:categories(name)')
       .eq('group_id', groupId)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -78,6 +84,102 @@ export function FinanceProvider({ children }) {
     if (txError) throw txError
     setTransactions((data ?? []).map(mapTransactionRow))
   }, [])
+
+  const loadBudgets = useCallback(async (groupId) => {
+    if (!groupId || !isSupabaseConfigured || !supabase) return
+
+    const { data, error: budgetsError } = await supabase
+      .from('budgets')
+      .select('id, limit_amount, month_start, alert_threshold_percent, created_at, category:categories(name)')
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: false })
+
+    if (budgetsError) throw budgetsError
+
+    setBudgets((data ?? []).map((item) => ({
+      id: item.id,
+      category: item.category?.name ?? 'Outros',
+      limit: Number(item.limit_amount) || 0,
+      period: 'mensal',
+      monthStart: item.month_start,
+      alertThresholdPercent: item.alert_threshold_percent ?? 80,
+      createdAt: item.created_at,
+    })))
+  }, [])
+
+  const loadTransactionComments = useCallback(async (groupId) => {
+    if (!groupId || !isSupabaseConfigured || !supabase) return
+
+    const { data, error: commentsError } = await supabase
+      .from('transaction_comments')
+      .select('id, transaction_id, content, created_at, profile:profiles(full_name)')
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: false })
+
+    if (commentsError) {
+      if (commentsError.code !== '42P01') throw commentsError
+      return
+    }
+
+    const grouped = (data ?? []).reduce((acc, item) => {
+      const key = item.transaction_id
+      if (!acc[key]) acc[key] = []
+      acc[key].push({
+        id: item.id,
+        content: item.content,
+        createdAt: item.created_at,
+        author: item.profile?.full_name ?? 'Membro',
+      })
+      return acc
+    }, {})
+
+    setTransactionComments(grouped)
+  }, [])
+
+  const loadActivityLogs = useCallback(async (groupId) => {
+    if (!groupId || !isSupabaseConfigured || !supabase) return
+
+    const { data, error: logsError } = await supabase
+      .from('app_activity_logs')
+      .select('id, action, metadata, transaction_id, created_at, profile:profiles(full_name)')
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: false })
+      .limit(60)
+
+    if (logsError) {
+      if (logsError.code !== '42P01') throw logsError
+      return
+    }
+
+    setActivityLogs((data ?? []).map((item) => ({
+      id: item.id,
+      action: item.action,
+      metadata: item.metadata ?? {},
+      transactionId: item.transaction_id,
+      createdAt: item.created_at,
+      author: item.profile?.full_name ?? 'Membro',
+    })))
+  }, [])
+
+  const logActivity = useCallback(async ({ action, transactionId = null, metadata = {} }) => {
+    if (!user?.id || !profile?.group_id || !isSupabaseConfigured || !supabase) return
+
+    const { error: logError } = await supabase.from('app_activity_logs').insert({
+      group_id: profile.group_id,
+      profile_id: user.id,
+      created_by: user.id,
+      transaction_id: transactionId,
+      action,
+      metadata,
+    })
+
+    if (logError && logError.code !== '42P01') {
+      console.warn('Falha ao registrar atividade:', logError.message)
+      return
+    }
+
+    await loadActivityLogs(profile.group_id)
+  }, [loadActivityLogs, profile?.group_id, user?.id])
 
   const refreshWorkspace = useCallback(async (currentUser) => {
     if (!currentUser || !isSupabaseConfigured || !supabase) return
@@ -87,14 +189,20 @@ export function FinanceProvider({ children }) {
     if (!currentProfile?.group_id) {
       setTransactions([])
       setMembers([])
+      setBudgets([])
+      setTransactionComments({})
+      setActivityLogs([])
       return
     }
 
     await Promise.all([
       loadMembers(currentProfile.group_id),
       loadTransactions(currentProfile.group_id),
+      loadBudgets(currentProfile.group_id),
+      loadTransactionComments(currentProfile.group_id),
+      loadActivityLogs(currentProfile.group_id),
     ])
-  }, [loadMembers, loadProfile, loadTransactions])
+  }, [loadActivityLogs, loadBudgets, loadMembers, loadProfile, loadTransactionComments, loadTransactions])
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -143,6 +251,9 @@ export function FinanceProvider({ children }) {
         setProfile(null)
         setMembers([])
         setTransactions([])
+        setBudgets([])
+        setTransactionComments({})
+        setActivityLogs([])
         return
       }
 
@@ -188,6 +299,20 @@ export function FinanceProvider({ children }) {
     const { error: signOutError } = await supabase.auth.signOut()
     setSubmitting(false)
     if (signOutError) throw signOutError
+  }
+
+  const resetPassword = async (email) => {
+    if (!isSupabaseConfigured || !supabase) return
+
+    setSubmitting(true)
+    setError(null)
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+
+    setSubmitting(false)
+    if (resetError) throw resetError
   }
 
   const bootstrapFamilyGroup = async ({ groupName, fullName }) => {
@@ -255,6 +380,17 @@ export function FinanceProvider({ children }) {
     setSubmitting(true)
     setError(null)
 
+    const parsedAmount = Number(data.amount)
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setSubmitting(false)
+      throw new Error('Informe um valor valido maior que zero.')
+    }
+
+    if (!data.type || (data.type !== 'expense' && data.type !== 'income')) {
+      setSubmitting(false)
+      throw new Error('Tipo de transacao invalido.')
+    }
+
     const categoryName = (data.category || 'Outros').trim()
     const normalizedCategory = categoryName.length > 0 ? categoryName : 'Outros'
 
@@ -291,19 +427,33 @@ export function FinanceProvider({ children }) {
       categoryId = createdCategory.id
     }
 
-    const { error: insertError } = await supabase.from('transactions').insert({
-      group_id: profile.group_id,
-      profile_id: user.id,
-      category_id: categoryId,
-      amount: Number(data.amount),
-      type: data.type,
-      transaction_date: new Date().toISOString().slice(0, 10),
-      due_date: data.dueDate || null,
-      is_paid: data.isPaid ?? true,
-      payment_status: data.isPaid ? 'paid' : 'pending',
-      note: data.description,
-      created_by: user.id,
-    })
+    const transactionDate = (() => {
+      const candidate = data.transaction_date || data.created_at || data.date
+      if (!candidate) return new Date().toISOString().slice(0, 10)
+
+      const parsed = new Date(candidate)
+      return Number.isNaN(parsed.getTime())
+        ? new Date().toISOString().slice(0, 10)
+        : parsed.toISOString().slice(0, 10)
+    })()
+
+    const { data: insertedTransaction, error: insertError } = await supabase
+      .from('transactions')
+      .insert({
+        group_id: profile.group_id,
+        profile_id: user.id,
+        category_id: categoryId,
+        amount: parsedAmount,
+        type: data.type,
+        transaction_date: transactionDate,
+        due_date: data.dueDate || null,
+        is_paid: data.isPaid ?? true,
+        payment_status: data.isPaid ? 'paid' : 'pending',
+        note: data.description,
+        created_by: user.id,
+      })
+      .select('id')
+      .single()
 
     if (insertError) {
       setSubmitting(false)
@@ -311,14 +461,30 @@ export function FinanceProvider({ children }) {
     }
 
     await loadTransactions(profile.group_id)
+    await logActivity({
+      action: 'transaction_created',
+      transactionId: insertedTransaction?.id ?? null,
+      metadata: {
+        amount: parsedAmount,
+        type: data.type,
+        category: normalizedCategory,
+      },
+    })
     setSubmitting(false)
   }
 
   const deleteTransaction = async (id) => {
-    if (!profile || !isSupabaseConfigured || !supabase) return
+    if (!profile || !user || !isSupabaseConfigured || !supabase) return
 
     setSubmitting(true)
     setError(null)
+
+    const currentTx = transactions.find((item) => item.id === id)
+    const canDelete = profile.role === 'owner' || currentTx?.profileId === user.id
+    if (!canDelete) {
+      setSubmitting(false)
+      throw new Error('Voce nao tem permissao para excluir esta transacao.')
+    }
 
     const { error: deleteError } = await supabase.from('transactions').delete().eq('id', id)
 
@@ -328,7 +494,126 @@ export function FinanceProvider({ children }) {
     }
 
     await loadTransactions(profile.group_id)
+    await loadTransactionComments(profile.group_id)
+    await logActivity({
+      action: 'transaction_deleted',
+      transactionId: id,
+      metadata: {
+        description: currentTx?.description || null,
+      },
+    })
     setSubmitting(false)
+  }
+
+  const addTransactionComment = async (transactionId, content) => {
+    if (!user || !profile || !isSupabaseConfigured || !supabase) return
+
+    const trimmedContent = (content || '').trim()
+    if (!trimmedContent) {
+      throw new Error('Comentario vazio.')
+    }
+
+    const { error: commentError } = await supabase.from('transaction_comments').insert({
+      group_id: profile.group_id,
+      transaction_id: transactionId,
+      profile_id: user.id,
+      created_by: user.id,
+      content: trimmedContent,
+    })
+
+    if (commentError) {
+      if (commentError.code === '42P01') {
+        throw new Error('Tabela de comentarios nao aplicada. Rode as migrations no Supabase.')
+      }
+      throw commentError
+    }
+
+    await loadTransactionComments(profile.group_id)
+    await logActivity({
+      action: 'transaction_commented',
+      transactionId,
+      metadata: { contentPreview: trimmedContent.slice(0, 120) },
+    })
+  }
+
+  const createSharedBudget = async (categoryName, limitAmount, period = 'mensal') => {
+    if (!user || !profile || !isSupabaseConfigured || !supabase) return
+
+    const parsedLimit = Number(limitAmount)
+    if (!Number.isFinite(parsedLimit) || parsedLimit <= 0) {
+      throw new Error('Informe um limite valido maior que zero.')
+    }
+
+    if (period !== 'mensal') {
+      throw new Error('No momento, apenas periodo mensal e suportado.')
+    }
+
+    const normalizedCategory = (categoryName || 'Outros').trim() || 'Outros'
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    monthStart.setHours(0, 0, 0, 0)
+
+    const { data: existingCategory, error: categoryLookupError } = await supabase
+      .from('categories')
+      .select('id, name')
+      .eq('group_id', profile.group_id)
+      .eq('name', normalizedCategory)
+      .maybeSingle()
+
+    if (categoryLookupError) throw categoryLookupError
+
+    let categoryId = existingCategory?.id
+    if (!categoryId) {
+      const { data: createdCategory, error: categoryInsertError } = await supabase
+        .from('categories')
+        .insert({
+          group_id: profile.group_id,
+          name: normalizedCategory,
+          created_by: user.id,
+        })
+        .select('id')
+        .single()
+
+      if (categoryInsertError) throw categoryInsertError
+      categoryId = createdCategory.id
+    }
+
+    const { error: budgetInsertError } = await supabase.from('budgets').upsert({
+      group_id: profile.group_id,
+      category_id: categoryId,
+      month_start: monthStart.toISOString().slice(0, 10),
+      limit_amount: parsedLimit,
+      alert_threshold_percent: 80,
+      created_by: user.id,
+    }, { onConflict: 'group_id,category_id,month_start' })
+
+    if (budgetInsertError) throw budgetInsertError
+
+    await loadBudgets(profile.group_id)
+    await logActivity({
+      action: 'budget_shared',
+      metadata: {
+        category: normalizedCategory,
+        limit: parsedLimit,
+      },
+    })
+  }
+
+  const deleteSharedBudget = async (budgetId) => {
+    if (!profile || !user || !isSupabaseConfigured || !supabase) return
+
+    if (profile.role !== 'owner') {
+      throw new Error('Apenas o owner pode remover orcamentos compartilhados.')
+    }
+
+    const { error: deleteBudgetError } = await supabase.from('budgets').delete().eq('id', budgetId)
+    if (deleteBudgetError) throw deleteBudgetError
+
+    await loadBudgets(profile.group_id)
+    await logActivity({
+      action: 'budget_deleted',
+      metadata: { budgetId },
+    })
   }
 
   const value = {
@@ -341,6 +626,9 @@ export function FinanceProvider({ children }) {
     profile,
     transactions,
     visibleTransactions,
+    budgets,
+    transactionComments,
+    activityLogs,
     summary,
     categoryChart,
     users,
@@ -349,9 +637,13 @@ export function FinanceProvider({ children }) {
     signIn,
     signUp,
     signOut,
+    resetPassword,
     bootstrapFamilyGroup,
     addTransaction,
     deleteTransaction,
+    addTransactionComment,
+    createSharedBudget,
+    deleteSharedBudget,
   }
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>

@@ -1,33 +1,63 @@
 import { useMemo } from 'react'
 import { useFinance } from '../context/FinanceContext'
+import { startOfDay, toDateKey } from '../utils/date'
 
 export function useDailyMonthlyStats() {
   const { visibleTransactions } = useFinance()
 
   const stats = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = startOfDay(new Date())
+    if (!today) {
+      return {
+        dailyExpenses: [],
+        dailyIncomes: [],
+        dailyBalance: [],
+        monthlyByCategory: {},
+        monthlyComparison: [],
+        totalDailyExpenses: 0,
+        totalDailyIncomes: 0,
+        totalMonthlyExpenses: 0,
+        balance: 0,
+        monthlyBalance: 0,
+        avgDailyExpense: 0,
+        avgDailyIncome: 0,
+        avgDailyBalance: 0,
+        largestExpenseCategory: null,
+        dateRange: { start: null, end: null },
+      }
+    }
 
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
 
     const dailyExpenses = []
     const dailyIncomes = []
+    const dailyBalance = []
     const monthlyByCategory = {}
+
+    const monthlyAccumulator = {}
 
     // Inicializar os 30 últimos dias
     for (let i = 29; i >= 0; i--) {
       const date = new Date(today)
       date.setDate(date.getDate() - i)
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = toDateKey(date)
+      if (!dateStr) continue
       dailyExpenses.push({ date: dateStr, value: 0 })
       dailyIncomes.push({ date: dateStr, value: 0 })
+      dailyBalance.push({ date: dateStr, value: 0 })
     }
 
     visibleTransactions.forEach((transaction) => {
-      const transDate = new Date(transaction.created_at)
+      const transDate = startOfDay(
+        transaction.createdAt || transaction.created_at || transaction.date || transaction.transaction_date,
+      )
+
+      if (!transDate) return
+
       transDate.setHours(0, 0, 0, 0)
-      const dateStr = transDate.toISOString().split('T')[0]
+      const dateStr = toDateKey(transDate)
+      if (!dateStr) return
 
       const amount = Math.abs(parseFloat(transaction.amount) || 0)
 
@@ -43,12 +73,46 @@ export function useDailyMonthlyStats() {
           const category = transaction.category || 'outros'
           monthlyByCategory[category] = (monthlyByCategory[category] || 0) + amount
         }
+
+        const monthKey = `${transDate.getFullYear()}-${String(transDate.getMonth() + 1).padStart(2, '0')}`
+        if (!monthlyAccumulator[monthKey]) {
+          monthlyAccumulator[monthKey] = { income: 0, expense: 0 }
+        }
+        monthlyAccumulator[monthKey].expense += amount
       } else if (transaction.type === 'income') {
         // Atualizar stats diários de renda
         const dailyIndex = dailyIncomes.findIndex((d) => d.date === dateStr)
         if (dailyIndex !== -1) {
           dailyIncomes[dailyIndex].value += amount
         }
+
+        const monthKey = `${transDate.getFullYear()}-${String(transDate.getMonth() + 1).padStart(2, '0')}`
+        if (!monthlyAccumulator[monthKey]) {
+          monthlyAccumulator[monthKey] = { income: 0, expense: 0 }
+        }
+        monthlyAccumulator[monthKey].income += amount
+      }
+    })
+
+    // Calcular saldo diário
+    for (let i = 0; i < dailyBalance.length; i += 1) {
+      dailyBalance[i].value = (dailyIncomes[i]?.value || 0) - (dailyExpenses[i]?.value || 0)
+    }
+
+    // Ultimos 6 meses para graficos comparativos
+    const monthlyComparison = Array.from({ length: 6 }).map((_, index) => {
+      const baseDate = new Date(today)
+      baseDate.setDate(1)
+      baseDate.setMonth(baseDate.getMonth() - (5 - index))
+
+      const monthKey = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}`
+      const monthData = monthlyAccumulator[monthKey] || { income: 0, expense: 0 }
+      return {
+        monthKey,
+        label: baseDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+        income: monthData.income,
+        expense: monthData.expense,
+        balance: monthData.income - monthData.expense,
       }
     })
 
@@ -73,7 +137,9 @@ export function useDailyMonthlyStats() {
       // Dados brutos
       dailyExpenses,
       dailyIncomes,
+      dailyBalance,
       monthlyByCategory,
+      monthlyComparison,
 
       // Totais
       totalDailyExpenses,

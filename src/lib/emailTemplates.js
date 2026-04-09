@@ -1,4 +1,6 @@
-const APP_NAME = 'FinançasAPP'
+import { formatDateBR } from '../utils/date'
+
+const APP_NAME = 'MyDinDin'
 
 const logoMarkup = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="88" height="88" style="display:block;margin:0 auto;">
@@ -53,9 +55,7 @@ export function buildAlertEmail({ alertTitle, amount, dueDate, actionUrl }) {
     currency: 'BRL',
   }).format(Number(amount) || 0)
 
-  const dateText = dueDate
-    ? new Date(dueDate).toLocaleDateString('pt-BR')
-    : 'Sem vencimento definido'
+  const dateText = formatDateBR(dueDate, 'Sem vencimento definido')
 
   return buildEmailShell({
     title: alertTitle || 'Alerta financeiro',
@@ -73,7 +73,7 @@ export function buildAlertEmail({ alertTitle, amount, dueDate, actionUrl }) {
       </div>
     `,
     actionUrl,
-    actionLabel: 'Abrir FinançasAPP',
+    actionLabel: 'Abrir MyDinDin',
     footerNote: 'Você pode revisar esse lançamento diretamente no aplicativo.',
   })
 }

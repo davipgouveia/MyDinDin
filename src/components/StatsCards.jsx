@@ -1,5 +1,17 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { useDailyMonthlyStats } from '../hooks/useStats'
 
 export function DailyStatsCard() {
@@ -140,5 +152,74 @@ export function MonthlyStatsCard() {
         )}
       </div>
     </motion.div>
+  )
+}
+
+export function AdvancedStatsCharts() {
+  const { monthlyComparison, dailyBalance } = useDailyMonthlyStats()
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="grid gap-4 xl:grid-cols-2"
+    >
+      <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-4">
+        <h3 className="mb-3 text-sm font-semibold text-slate-300">Comparativo dos últimos 6 meses</h3>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyComparison}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="label" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '0.75rem',
+                }}
+              />
+              <Legend />
+              <Bar dataKey="income" name="Receitas" fill="#22c55e" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="expense" name="Despesas" fill="#ef4444" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-4">
+        <h3 className="mb-3 text-sm font-semibold text-slate-300">Tendência de saldo diário (30 dias)</h3>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={dailyBalance}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis
+                dataKey="date"
+                stroke="#94a3b8"
+                tickFormatter={(value) => value.slice(5)}
+              />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '0.75rem',
+                }}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="value"
+                name="Saldo diário"
+                stroke="#38bdf8"
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </motion.section>
   )
 }

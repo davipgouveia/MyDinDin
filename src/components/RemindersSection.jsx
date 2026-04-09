@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Trash2, CheckCircle2, Clock, Calendar, AlertCircle } from 'lucide-react'
+import { formatDateBR, parseDateValue } from '../utils/date'
 
 export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, onComplete = () => {} }) {
   const containerVariants = {
@@ -20,7 +21,9 @@ export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, o
 
   const getUrgencyColor = (dueDate) => {
     const now = new Date()
-    const due = new Date(dueDate)
+    const due = parseDateValue(dueDate)
+    if (!due) return 'border-slate-600/40 bg-slate-800/20'
+
     const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24))
 
     if (daysLeft <= 1) return 'border-red-500/30 bg-red-500/5'
@@ -30,7 +33,9 @@ export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, o
 
   const getUrgencyIcon = (dueDate) => {
     const now = new Date()
-    const due = new Date(dueDate)
+    const due = parseDateValue(dueDate)
+    if (!due) return <Calendar size={16} className="text-slate-400" />
+
     const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24))
 
     if (daysLeft <= 1) return <AlertCircle size={16} className="text-red-400" />
@@ -76,7 +81,7 @@ export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, o
                     {reminder.description}
                   </p>
                   <p className="text-xs text-slate-400">
-                    {new Date(reminder.dueDate).toLocaleDateString('pt-BR')}
+                    {formatDateBR(reminder.dueDate, 'Sem data definida')}
                   </p>
                 </div>
               </div>

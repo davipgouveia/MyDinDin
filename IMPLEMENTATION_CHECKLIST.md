@@ -121,15 +121,38 @@
 - [x] Scrollbar personalizado
 - [x] Responsividade completa
 
+### 🧭 Atualizações desta rodada
+- [x] Menu inferior mobile com botão central de adição
+- [x] Página de usuário com dados da conta e status das integrações
+- [x] Botão de "Esqueci minha senha" no login
+- [x] Correção de datas inválidas na IA e nas estatísticas
+- [x] Layout responsivo mais compacto no mobile e mais aberto no desktop
+- [x] Ícones PWA alinhados à identidade visual do logo
+- [x] Migração estrutural para Next.js com API route do Resend
+
+### 🆕 Atualizações desta continuação
+- [x] Sincronização de backups locais com Supabase (`app_backups`)
+- [x] Backup remoto de categorias customizadas, ordem, lembretes e recorrentes
+- [x] Exportação de transações em CSV na página de usuário
+- [x] Geração de relatório mensal em PDF (via impressão do navegador)
+- [x] Comparação mês atual, mês anterior e mesmo mês do ano anterior no relatório
+- [x] Comentários em transações com persistência no Supabase
+- [x] Histórico de alterações com timeline no perfil
+- [x] Controle de acesso no frontend para exclusão (owner ou autor)
+- [x] Orçamentos compartilhados do grupo com persistência no Supabase
+- [x] Gestão de orçamentos compartilhados na página de usuário
+- [x] Webhook de alertas com envio para lembretes urgentes e botão de teste
+- [x] Gráficos avançados com Recharts na aba de estatísticas
+
 ---
 
 ## 🚀 Próximos Passos (Sugestões)
 
 ### 1. **Integração com Supabase Avançada**
-   - [ ] Sincronizar categorias customizadas com backend
-   - [ ] Backup de lembretes e pagamentos recorrentes
-   - [ ] Histórico de transações sincronizado
-   - [ ] Compartilhamento de orçamentos entre usuários
+   - [x] Sincronizar categorias customizadas com backend
+   - [x] Backup de lembretes e pagamentos recorrentes
+   - [x] Histórico de transações sincronizado
+   - [x] Compartilhamento de orçamentos entre usuários
 
 ### 2. **Melhorias na IA**
    - [ ] Machine Learning para padrões de gastos
@@ -138,16 +161,16 @@
    - [ ] Recomendações personalizadas por padrão
 
 ### 3. **Relatórios & Exportação**
-   - [ ] Gerar PDF de relatórios mensais
-   - [ ] Exportar dados em CSV
-   - [ ] Gráficos avançados com Recharts
-   - [ ] Comparação mensal/anual
+   - [x] Gerar PDF de relatórios mensais
+   - [x] Exportar dados em CSV
+   - [x] Gráficos avançados com Recharts
+   - [x] Comparação mensal/anual
 
 ### 4. **Funcionalidades Sociais**
-   - [ ] Compartilhar orçamentos com família
-   - [ ] Controle de acesso por usuário
-   - [ ] Histórico de alterações
-   - [ ] Comentários em transações
+   - [x] Compartilhar orçamentos com família
+   - [x] Controle de acesso por usuário
+   - [x] Histórico de alterações
+   - [x] Comentários em transações
 
 ### 5. **Mobile App**
    - [ ] Aplicativo iOS
@@ -159,7 +182,7 @@
    - [ ] Integração com bancos (Open Banking)
    - [ ] Conexão com aplicativos de investimento
    - [ ] Sincronização com calendário
-   - [ ] Webhooks para alertas
+   - [x] Webhooks para alertas
 
 ### 7. **Segurança Avançada**
    - [ ] Autenticação 2FA
@@ -168,10 +191,10 @@
    - [ ] Auditoria de ações
 
 ### 8. **Temas & Personalização**
-   - [ ] Tema claro/escuro avançado
-   - [ ] Customização de cores
-   - [ ] Layouts alternativos
-   - [ ] Idiomas (i18n)
+   - [x] Tema claro/escuro avançado
+   - [x] Customização de cores
+   - [x] Layouts alternativos
+   - [x] Idiomas (i18n)
 
 ---
 
@@ -320,7 +343,7 @@ Veja `CompleteIntegrationExample.jsx` para exemplos práticos
 
 **Resumo da Implementação:**
 - **Data**: Abril de 2026
-- **Versão**: 2.0
+- **Versão**: Versione corretamente a cada atualização.
 - **Status**: ✅ COMPLETO
 - **Tempo de Desenvolvimento**: Otimizado
 - **Qualidade**: Produção-ready

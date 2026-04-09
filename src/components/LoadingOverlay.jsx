@@ -53,7 +53,6 @@ export function LoadingOverlay() {
           </motion.div>
         </div>
 
-        <p className="text-xs uppercase tracking-[0.22em] text-cyan-300">MyDinDin</p>
         <h1 className={`mt-3 text-2xl font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>{t('loadingTitle')}</h1>
         <p className={`mt-2 text-sm leading-6 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>{t('loadingSubtitle')}</p>
 

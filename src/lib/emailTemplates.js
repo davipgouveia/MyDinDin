@@ -205,3 +205,34 @@ export function buildSecurityNoticeEmail({ title, message, actionUrl }) {
     footerNote: 'Dica: mantenha sua senha unica e atualizada periodicamente.',
   })
 }
+
+export function buildGroupInviteEmail({ groupName, inviterName, expiresAt, actionUrl }) {
+  const expiresText = formatDateBR(expiresAt, 'Sem expiracao definida')
+
+  return buildEmailShell({
+    title: 'Convite para grupo no MyDinDin',
+    body: `
+      <p style="margin:0 0 16px 0;">Voce recebeu um convite para participar de um grupo financeiro no ${APP_NAME}.</p>
+      <div style="display:grid;gap:12px;">
+        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Grupo</div>
+          <div style="margin-top:6px;font-size:16px;font-weight:700;color:#ffffff;">${groupName || 'Grupo sem nome'}</div>
+        </div>
+        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Convidado por</div>
+            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#ffffff;">${inviterName || 'Administrador do grupo'}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Expira em</div>
+            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#ffffff;">${expiresText}</div>
+          </div>
+        </div>
+      </div>
+      <p style="margin:16px 0 0 0;">Ao abrir o app e entrar com este email, selecione a opcao <strong>Entrar em grupo</strong> para aceitar o convite.</p>
+    `,
+    actionUrl,
+    actionLabel: 'Abrir MyDinDin',
+    footerNote: 'Se voce nao esperava este convite, basta ignorar este email.',
+  })
+}

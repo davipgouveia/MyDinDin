@@ -2,7 +2,8 @@ import { motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { BadgeCheck, BellRing, Download, FileSpreadsheet, LogOut, Shield, Sparkles, Trash2, WalletCards } from 'lucide-react'
 import { formatCurrency } from '../utils/format'
-import { isResendConfigured } from '../lib/resend'
+import { isResendConfigured, sendAlertEmail } from '../lib/resend'
+import { buildGroupInviteEmail } from '../lib/emailTemplates'
 import { exportTransactionsCsv, printMonthlyPdfReport } from '../utils/reports'
 import { isWebhookConfigured, sendWebhookAlert } from '../lib/webhookAlerts'
 import { toast } from '../hooks/useToast'
@@ -141,15 +142,44 @@ export function UserPage({
         throw new Error('Informe ao menos um email válido.')
       }
 
-      await Promise.all(
-        emails.map((email) => onInviteGroupMember({
-          email,
-          expiresInDays: Number(inviteExpiresIn) || 7,
-        })),
+      const expiresInDays = Number(inviteExpiresIn) || 7
+      const inviterName = profile?.full_name || user?.email || 'Administrador'
+      const actionUrl = typeof window !== 'undefined' ? window.location.origin : undefined
+
+      const results = await Promise.allSettled(
+        emails.map(async (email) => {
+          await onInviteGroupMember({
+            email,
+            expiresInDays,
+          })
+
+          const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
+
+          await sendAlertEmail({
+            to: email,
+            subject: `Convite para o grupo ${group?.name || 'MyDinDin'}`,
+            html: buildGroupInviteEmail({
+              groupName: group?.name,
+              inviterName,
+              expiresAt,
+              actionUrl,
+            }),
+          })
+        }),
       )
 
+      const sentCount = results.filter((result) => result.status === 'fulfilled').length
+      const failedCount = results.length - sentCount
+
       setInviteEmail('')
-      toast.success(`${emails.length} convite(s) enviado(s) com sucesso!`)
+
+      if (sentCount > 0) {
+        toast.success(`${sentCount} convite(s) enviado(s) por email com sucesso!`)
+      }
+
+      if (failedCount > 0) {
+        toast.error(`${failedCount} convite(s) nao tiveram envio de email. Verifique RESEND_API_KEY e RESEND_FROM_EMAIL.`)
+      }
     } catch (inviteError) {
       toast.error(`Erro ao enviar convite: ${inviteError.message}`)
     }

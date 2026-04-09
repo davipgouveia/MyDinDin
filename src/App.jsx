@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Plus, ServerCrash, Settings } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -552,8 +552,20 @@ export default function App() {
 function SignInView() {
   const [mode, setMode] = useState('signin')
   const [authForm, setAuthForm] = useState({ email: '', password: '' })
-  const { submitting, error, setError, signIn, signUp, resetPassword } = useFinance()
+  const [signupEmailStatus, setSignupEmailStatus] = useState({ type: 'idle', message: '' })
+  const [resetCooldownSeconds, setResetCooldownSeconds] = useState(0)
+  const { submitting, error, setError, signIn, signUp, resetPassword, checkRegisteredEmail } = useFinance()
   const { t } = usePreferences()
+
+  useEffect(() => {
+    if (resetCooldownSeconds <= 0) return undefined
+
+    const timer = window.setInterval(() => {
+      setResetCooldownSeconds((current) => (current <= 1 ? 0 : current - 1))
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [resetCooldownSeconds])
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault()
@@ -562,11 +574,58 @@ function SignInView() {
       if (mode === 'signin') {
         await signIn(authForm)
       } else {
-        await signUp(authForm)
+        const signUpResult = await signUp(authForm)
+        if (signUpResult?.requiresEmailVerification) {
+          toast.success('Conta criada. Enviamos um email via Resend para confirmacao antes do primeiro login.')
+          setMode('signin')
+        }
       }
       setAuthForm({ email: '', password: '' })
+      setSignupEmailStatus({ type: 'idle', message: '' })
     } catch (authError) {
       setError(authError.message)
+    }
+  }
+
+  const handleSignupEmailCheck = async () => {
+    if (mode !== 'signup') return
+
+    const normalizedEmail = String(authForm.email || '').trim().toLowerCase()
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      setSignupEmailStatus({ type: 'idle', message: '' })
+      return
+    }
+
+    setSignupEmailStatus({ type: 'checking', message: 'Verificando email...' })
+
+    try {
+      const result = await checkRegisteredEmail(normalizedEmail)
+
+      if (!result?.checked) {
+        setSignupEmailStatus({
+          type: 'error',
+          message: 'Nao foi possivel validar este email agora. Tente novamente em alguns instantes.',
+        })
+        return
+      }
+
+      if (result.exists) {
+        setSignupEmailStatus({
+          type: 'exists',
+          message: 'Este email ja possui cadastro. Use Entrar ou Esqueci minha senha.',
+        })
+        return
+      }
+
+      setSignupEmailStatus({
+        type: 'available',
+        message: 'Email disponivel para cadastro.',
+      })
+    } catch (_error) {
+      setSignupEmailStatus({
+        type: 'error',
+        message: 'Nao foi possivel verificar agora. Tente novamente em alguns instantes.',
+      })
     }
   }
 
@@ -576,10 +635,23 @@ function SignInView() {
       return
     }
 
+    if (resetCooldownSeconds > 0) {
+      setError(`Aguarde ${resetCooldownSeconds}s para solicitar um novo email.`)
+      return
+    }
+
     try {
       await resetPassword(authForm.email)
+      setResetCooldownSeconds(60)
       toast.success('Enviamos um link para redefinir sua senha.')
     } catch (resetError) {
+      const message = String(resetError?.message || '').toLowerCase()
+      const isRateLimit = message.includes('muitas tentativas') || message.includes('too many requests') || message.includes('rate limit')
+
+      if (isRateLimit) {
+        setResetCooldownSeconds(60)
+      }
+
       setError(resetError.message)
     }
   }
@@ -619,6 +691,7 @@ function SignInView() {
             onClick={() => {
               setMode('signin')
               setError(null)
+              setSignupEmailStatus({ type: 'idle', message: '' })
             }}
             className={`rounded-lg px-3 py-1.5 transition ${mode === 'signin' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:text-cyan-200'}`}
           >
@@ -629,6 +702,7 @@ function SignInView() {
             onClick={() => {
               setMode('signup')
               setError(null)
+              setSignupEmailStatus({ type: 'idle', message: '' })
             }}
             className={`rounded-lg px-3 py-1.5 transition ${mode === 'signup' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-300 hover:text-emerald-200'}`}
           >
@@ -642,9 +716,32 @@ function SignInView() {
             type="email"
             placeholder="Email"
             value={authForm.email}
-            onChange={(event) => setAuthForm((prev) => ({ ...prev, email: event.target.value }))}
+            onChange={(event) => {
+              setAuthForm((prev) => ({ ...prev, email: event.target.value }))
+              if (mode === 'signup') {
+                setSignupEmailStatus({ type: 'idle', message: '' })
+              }
+            }}
+            onBlur={handleSignupEmailCheck}
             className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
           />
+
+          {mode === 'signup' && signupEmailStatus.type !== 'idle' && (
+            <p
+              className={`text-xs ${
+                signupEmailStatus.type === 'exists'
+                  ? 'text-rose-300'
+                  : signupEmailStatus.type === 'available'
+                    ? 'text-emerald-300'
+                    : signupEmailStatus.type === 'checking'
+                      ? 'text-cyan-300'
+                      : 'text-amber-300'
+              }`}
+            >
+              {signupEmailStatus.message}
+            </p>
+          )}
+
           <input
             required
             type="password"
@@ -656,7 +753,14 @@ function SignInView() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={
+              submitting
+              || (mode === 'signup' && (
+                signupEmailStatus.type === 'exists'
+                || signupEmailStatus.type === 'checking'
+                || signupEmailStatus.type === 'error'
+              ))
+            }
             className={`w-full rounded-lg py-2.5 text-sm font-semibold text-slate-950 transition disabled:cursor-not-allowed disabled:opacity-60 ${
               isSignUp ? 'bg-emerald-400 hover:bg-emerald-300' : 'bg-cyan-500 hover:bg-cyan-400'
             }`}
@@ -671,6 +775,7 @@ function SignInView() {
             onClick={() => {
               setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'))
               setError(null)
+              setSignupEmailStatus({ type: 'idle', message: '' })
             }}
             className="text-sm text-cyan-300 underline-offset-2 hover:underline"
           >
@@ -681,9 +786,10 @@ function SignInView() {
             <button
               type="button"
               onClick={handlePasswordReset}
+              disabled={submitting || resetCooldownSeconds > 0}
               className="text-sm text-slate-300 underline-offset-2 transition hover:text-cyan-300 hover:underline"
             >
-              {t('forgotPassword')}
+              {resetCooldownSeconds > 0 ? `${t('forgotPassword')} (${resetCooldownSeconds}s)` : t('forgotPassword')}
             </button>
           )}
         </div>

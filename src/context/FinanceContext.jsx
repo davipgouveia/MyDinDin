@@ -22,6 +22,16 @@ const wait = (ms) => new Promise((resolve) => {
   setTimeout(resolve, ms)
 })
 
+const isRateLimitError = (error) => {
+  if (!error) return false
+
+  const message = String(error.message || '').toLowerCase()
+  return error.status === 429
+    || message.includes('too many requests')
+    || message.includes('rate limit')
+    || message.includes('security purposes')
+}
+
 const mapTransactionRow = (row) => ({
   id: row.id,
   profileId: row.profile_id,
@@ -54,6 +64,7 @@ export function FinanceProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [passwordResetCooldownUntil, setPasswordResetCooldownUntil] = useState(0)
 
   const user = session?.user ?? null
 
@@ -365,16 +376,93 @@ export function FinanceProvider({ children }) {
     setError(null)
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     setSubmitting(false)
+
+    if (signInError) {
+      const signInMessage = String(signInError.message || '').toLowerCase()
+      if (signInMessage.includes('email not confirmed') || signInMessage.includes('email_not_confirmed')) {
+        throw new Error('Seu email ainda nao foi confirmado. Verifique sua caixa de entrada para liberar o acesso.')
+      }
+    }
+
     if (signInError) throw signInError
+  }
+
+  const checkRegisteredEmail = async (email) => {
+    if (!isSupabaseConfigured || !supabase) {
+      return { exists: false, checked: false }
+    }
+
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      throw new Error('Informe um email valido para verificar o cadastro.')
+    }
+
+    const response = await fetch('/api/auth/check-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: normalizedEmail }),
+    })
+
+    if (response.status === 503) {
+      return { exists: false, checked: false }
+    }
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload.error || 'Nao foi possivel verificar o email agora.')
+    }
+
+    return {
+      exists: Boolean(payload.exists),
+      checked: true,
+    }
   }
 
   const signUp = async ({ email, password }) => {
     if (!isSupabaseConfigured || !supabase) return
+
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    const normalizedPassword = String(password || '')
+    if (normalizedPassword.length < 6) {
+      throw new Error('A senha deve ter pelo menos 6 caracteres.')
+    }
+
+    const emailCheck = await checkRegisteredEmail(normalizedEmail)
+    if (!emailCheck.checked) {
+      throw new Error('Nao foi possivel validar o email agora. Tente novamente em instantes.')
+    }
+
+    if (emailCheck.exists) {
+      throw new Error('Este email ja possui cadastro. Use Entrar ou Esqueci minha senha.')
+    }
+
     setSubmitting(true)
     setError(null)
-    const { error: signUpError } = await supabase.auth.signUp({ email, password })
-    setSubmitting(false)
-    if (signUpError) throw signUpError
+    try {
+      const signUpResponse = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password: normalizedPassword,
+        }),
+      })
+
+      const signUpPayload = await signUpResponse.json().catch(() => ({}))
+      if (!signUpResponse.ok) {
+        throw new Error(signUpPayload.error || 'Nao foi possivel criar sua conta agora.')
+      }
+
+      return {
+        requiresEmailVerification: Boolean(signUpPayload.requiresEmailVerification),
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const signOut = async () => {
@@ -389,15 +477,34 @@ export function FinanceProvider({ children }) {
   const resetPassword = async (email) => {
     if (!isSupabaseConfigured || !supabase) return
 
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      throw new Error('Informe um email valido para redefinir a senha.')
+    }
+
+    const now = Date.now()
+    if (passwordResetCooldownUntil > now) {
+      const seconds = Math.ceil((passwordResetCooldownUntil - now) / 1000)
+      throw new Error(`Aguarde ${seconds}s antes de solicitar outro email de redefinicao.`)
+    }
+
     setSubmitting(true)
     setError(null)
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
 
     setSubmitting(false)
-    if (resetError) throw resetError
+    if (resetError) {
+      if (isRateLimitError(resetError)) {
+        setPasswordResetCooldownUntil(Date.now() + 60_000)
+        throw new Error('Muitas tentativas de redefinicao. Aguarde 60 segundos e tente novamente.')
+      }
+      throw resetError
+    }
+
+    setPasswordResetCooldownUntil(Date.now() + 60_000)
   }
 
   const bootstrapFamilyGroup = async ({ groupName, fullName }) => {
@@ -847,6 +954,7 @@ export function FinanceProvider({ children }) {
     setOwnerFilter,
     signIn,
     signUp,
+    checkRegisteredEmail,
     signOut,
     resetPassword,
     bootstrapFamilyGroup,

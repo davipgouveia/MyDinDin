@@ -206,6 +206,24 @@ export function buildSecurityNoticeEmail({ title, message, actionUrl }) {
   })
 }
 
+export function buildSignupVerificationEmail({ actionUrl }) {
+  return buildEmailShell({
+    title: 'Confirme seu email para entrar',
+    body: `
+      <p style="margin:0 0 16px 0;">Sua conta no ${APP_NAME} foi criada com sucesso.</p>
+      <p style="margin:0 0 16px 0;">Para liberar o acesso, confirme seu email clicando no botao abaixo.</p>
+      <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Etapa obrigatoria</div>
+        <div style="margin-top:6px;font-size:16px;font-weight:600;color:#ffffff;">Verificacao de email antes do primeiro login</div>
+      </div>
+      <p style="margin:16px 0 0 0;">Se nao foi voce, ignore este email com seguranca.</p>
+    `,
+    actionUrl,
+    actionLabel: 'Confirmar email',
+    footerNote: 'Depois da confirmacao, volte ao app e faca login normalmente.',
+  })
+}
+
 export function buildGroupInviteEmail({ groupName, inviterName, expiresAt, actionUrl }) {
   const expiresText = formatDateBR(expiresAt, 'Sem expiracao definida')
 

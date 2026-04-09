@@ -1,7 +1,7 @@
 {
   "name": "MyDinDin",
   "private": true,
-  "version": "2.2.5",
+  "version": "2.3.0",
   "description": "MyDinDin - App de gestão financeira multiusuário com PWA",
   "type": "module",
   "scripts": {

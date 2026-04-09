@@ -29,7 +29,16 @@ export async function POST(request) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      return NextResponse.json({ error: `Falha ao enviar email: ${errorText}` }, { status: 500 })
+      const isRateLimited = response.status === 429 || String(errorText).toLowerCase().includes('rate limit')
+
+      if (isRateLimited) {
+        return NextResponse.json(
+          { error: 'Limite temporario de envio de email atingido no provedor. Tente novamente em alguns instantes.' },
+          { status: 429 },
+        )
+      }
+
+      return NextResponse.json({ error: `Falha ao enviar email: ${errorText}` }, { status: response.status || 500 })
     }
 
     const data = await response.json()

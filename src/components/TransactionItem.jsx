@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { ArrowDownCircle, ArrowUpCircle, MessageCircle, Send, Trash2 } from 'lucide-react'
 import { formatCurrency, formatDate } from '../utils/format'
@@ -28,7 +29,13 @@ export default function TransactionItem({
   }
 
   return (
-    <li className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+    <motion.li
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="rounded-xl border border-slate-800 bg-slate-900/80 p-3"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2">
           {isIncome ? (
@@ -47,9 +54,14 @@ export default function TransactionItem({
         </div>
 
         <div className="flex items-center gap-2">
-          <p className={`text-sm font-semibold ${isIncome ? 'text-income' : 'text-expense'}`}>
+          <motion.p
+            initial={{ scale: 0.96, opacity: 0.9 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.18 }}
+            className={`text-sm font-semibold ${isIncome ? 'text-income' : 'text-expense'}`}
+          >
             {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
-          </p>
+          </motion.p>
           <button
             type="button"
             onClick={() => setCommentsOpen((current) => !current)}
@@ -71,8 +83,15 @@ export default function TransactionItem({
         </div>
       </div>
 
-      {commentsOpen && (
-        <div className="mt-3 space-y-2 rounded-lg border border-slate-800 bg-slate-950/70 p-3">
+      <AnimatePresence initial={false}>
+        {commentsOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -4 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="mt-3 space-y-2 overflow-hidden rounded-lg border border-slate-800 bg-slate-950/70 p-3"
+          >
           <form className="flex items-center gap-2" onSubmit={handleCommentSubmit}>
             <input
               type="text"
@@ -91,21 +110,34 @@ export default function TransactionItem({
           </form>
 
           {comments.length > 0 ? (
-            <ul className="space-y-1.5">
+            <motion.ul
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: { opacity: 1, transition: { staggerChildren: 0.04 } },
+              }}
+              className="space-y-1.5"
+            >
               {comments.map((comment) => (
-                <li key={comment.id} className="rounded-md border border-slate-800 bg-slate-900/70 px-2 py-1.5">
+                <motion.li
+                  key={comment.id}
+                  variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }}
+                  className="rounded-md border border-slate-800 bg-slate-900/70 px-2 py-1.5"
+                >
                   <p className="text-xs text-slate-200">{comment.content}</p>
                   <p className="mt-1 text-[10px] text-slate-500">
                     {comment.author} • {formatDate(comment.createdAt)}
                   </p>
-                </li>
+                </motion.li>
               ))}
-            </ul>
+            </motion.ul>
           ) : (
             <p className="text-xs text-slate-500">Sem comentários nesta transação.</p>
           )}
-        </div>
-      )}
-    </li>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.li>
   )
 }

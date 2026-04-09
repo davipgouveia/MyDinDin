@@ -77,3 +77,131 @@ export function buildAlertEmail({ alertTitle, amount, dueDate, actionUrl }) {
     footerNote: 'Você pode revisar esse lançamento diretamente no aplicativo.',
   })
 }
+
+export function buildPasswordResetEmail({ requestedAt, actionUrl, supportEmail }) {
+  const requestedAtText = formatDateBR(requestedAt, formatDateBR(new Date().toISOString(), 'Agora'))
+
+  return buildEmailShell({
+    title: 'Redefinicao de senha solicitada',
+    body: `
+      <p style="margin:0 0 16px 0;">Recebemos uma solicitacao para redefinir sua senha no ${APP_NAME}.</p>
+      <p style="margin:0 0 16px 0;">Se foi voce, use o botao abaixo para continuar com seguranca.</p>
+      <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Solicitacao registrada em</div>
+        <div style="margin-top:6px;font-size:16px;font-weight:600;color:#ffffff;">${requestedAtText}</div>
+      </div>
+      <p style="margin:16px 0 0 0;">Caso nao tenha sido voce, recomendamos trocar a senha do seu email principal e revisar dispositivos conectados.</p>
+    `,
+    actionUrl,
+    actionLabel: 'Redefinir senha',
+    footerNote: supportEmail
+      ? `Se precisar de ajuda, fale com ${supportEmail}.`
+      : 'Se voce nao solicitou essa redefinicao, ignore este email com seguranca.',
+  })
+}
+
+export function buildDueReminderEmail({ description, amount, dueDate, daysLeft, actionUrl }) {
+  const formattedAmount = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(Number(amount) || 0)
+
+  const dueText = formatDateBR(dueDate, 'Sem vencimento definido')
+  const urgencyLabel =
+    typeof daysLeft === 'number'
+      ? daysLeft <= 0
+        ? 'Vence hoje'
+        : `Vence em ${daysLeft} dia(s)`
+      : 'Vencimento proximo'
+
+  return buildEmailShell({
+    title: 'Lembrete de vencimento',
+    body: `
+      <p style="margin:0 0 16px 0;">Temos um lembrete importante para sua organizacao financeira:</p>
+      <div style="display:grid;gap:12px;">
+        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Lancamento</div>
+          <div style="margin-top:6px;font-size:16px;font-weight:600;color:#ffffff;">${description || 'Despesa/receita'}</div>
+        </div>
+        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Valor</div>
+            <div style="margin-top:6px;font-size:18px;font-weight:700;color:#ffffff;">${formattedAmount}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Vencimento</div>
+            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#ffffff;">${dueText}</div>
+            <div style="margin-top:4px;font-size:12px;color:#cbd5e1;">${urgencyLabel}</div>
+          </div>
+        </div>
+      </div>
+    `,
+    actionUrl,
+    actionLabel: 'Abrir e revisar agora',
+    footerNote: 'Manter vencimentos em dia reduz multas e melhora sua previsibilidade mensal.',
+  })
+}
+
+export function buildBudgetWarningEmail({ category, spent, limit, usagePercent, actionUrl }) {
+  const fmt = (value) =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(Number(value) || 0)
+
+  const resolvedUsage = Number.isFinite(Number(usagePercent))
+    ? Number(usagePercent)
+    : (Number(limit) > 0 ? (Number(spent) / Number(limit)) * 100 : 0)
+
+  return buildEmailShell({
+    title: 'Alerta de orcamento',
+    body: `
+      <p style="margin:0 0 16px 0;">Seu orcamento de <strong>${category || 'Categoria'}</strong> atingiu nivel de atencao.</p>
+      <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Consumo atual</div>
+        <div style="margin-top:6px;font-size:16px;font-weight:700;color:#ffffff;">${fmt(spent)} de ${fmt(limit)} (${resolvedUsage.toFixed(0)}%)</div>
+      </div>
+      <p style="margin:16px 0 0 0;">Se quiser, ajuste o limite ou priorize os gastos essenciais ate o fim do periodo.</p>
+    `,
+    actionUrl,
+    actionLabel: 'Revisar orcamento',
+    footerNote: 'Acompanhar orcamentos semanalmente evita surpresas no fechamento do mes.',
+  })
+}
+
+export function buildMonthlySummaryEmail({ monthLabel, income, expense, balance, topCategory, actionUrl }) {
+  const fmt = (value) =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(Number(value) || 0)
+
+  return buildEmailShell({
+    title: `Resumo mensal${monthLabel ? ` - ${monthLabel}` : ''}`,
+    body: `
+      <p style="margin:0 0 16px 0;">Fechamos seu resumo do periodo com os principais indicadores:</p>
+      <div style="display:grid;gap:10px;">
+        <div style="padding:12px 14px;border-radius:14px;background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.25);">Receitas: <strong style="color:#ffffff;">${fmt(income)}</strong></div>
+        <div style="padding:12px 14px;border-radius:14px;background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.25);">Despesas: <strong style="color:#ffffff;">${fmt(expense)}</strong></div>
+        <div style="padding:12px 14px;border-radius:14px;background:rgba(56,189,248,0.14);border:1px solid rgba(56,189,248,0.25);">Saldo: <strong style="color:#ffffff;">${fmt(balance)}</strong></div>
+      </div>
+      ${topCategory ? `<p style="margin:16px 0 0 0;">Categoria com maior impacto: <strong>${topCategory}</strong>.</p>` : ''}
+    `,
+    actionUrl,
+    actionLabel: 'Ver detalhes no painel',
+    footerNote: 'Use este resumo para ajustar metas, limites e planejamento do proximo mes.',
+  })
+}
+
+export function buildSecurityNoticeEmail({ title, message, actionUrl }) {
+  return buildEmailShell({
+    title: title || 'Aviso de seguranca',
+    body: `
+      <p style="margin:0 0 16px 0;">${message || 'Detectamos uma atividade sensivel em sua conta.'}</p>
+      <p style="margin:0;">Se voce reconhece a acao, nao e necessario fazer nada. Caso contrario, revise o acesso da sua conta imediatamente.</p>
+    `,
+    actionUrl,
+    actionLabel: 'Revisar seguranca da conta',
+    footerNote: 'Dica: mantenha sua senha unica e atualizada periodicamente.',
+  })
+}

@@ -56,6 +56,10 @@ function DashboardContent() {
     setError,
     profile,
     user,
+    group,
+    members,
+    groupInvites,
+    pendingGroupInvites,
     visibleTransactions,
     transactionComments,
     activityLogs,
@@ -68,6 +72,10 @@ function DashboardContent() {
     addTransaction,
     deleteTransaction,
     addTransactionComment,
+    updateGroupSettings,
+    inviteGroupMember,
+    revokeGroupInvite,
+    acceptGroupInvite,
   } = useFinance()
   const { theme, layoutMode, t, toggleTheme } = usePreferences()
   const isLight = theme === 'light'
@@ -456,12 +464,20 @@ function DashboardContent() {
         <UserPage
           profile={profile}
           user={user}
+          group={group}
+          members={members}
+          groupInvites={groupInvites}
+          pendingGroupInvites={pendingGroupInvites}
           summary={summary}
           transactions={visibleTransactions}
           activityLogs={activityLogs}
           budgets={budgets}
           onCreateBudget={addBudget}
           onDeleteBudget={removeBudget}
+          onUpdateGroupSettings={updateGroupSettings}
+          onInviteGroupMember={inviteGroupMember}
+          onRevokeGroupInvite={revokeGroupInvite}
+          onAcceptGroupInvite={acceptGroupInvite}
           onSignOut={handleSignOut}
           ownerFilter={ownerFilter}
           onOwnerFilterChange={setOwnerFilter}
@@ -513,7 +529,7 @@ export default function App() {
               <h1 className="text-lg font-semibold">Supabase não configurado</h1>
             </div>
             <p className="text-sm text-slate-300">
-              Crie um arquivo <strong>.env</strong> na raiz com as variáveis <strong>VITE_SUPABASE_URL</strong>
+              Crie um arquivo <strong>.env.local</strong> na raiz com as variáveis <strong>NEXT_PUBLIC_SUPABASE_URL</strong>
               {' '}e <strong>NEXT_PUBLIC_SUPABASE_ANON_KEY</strong>, depois reinicie o <strong>npm run dev</strong>.
             </p>
           </section>
@@ -597,6 +613,29 @@ function SignInView() {
           </span>
         </div>
 
+        <div className="mb-4 inline-flex rounded-xl border border-slate-700 bg-slate-900/70 p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signin')
+              setError(null)
+            }}
+            className={`rounded-lg px-3 py-1.5 transition ${mode === 'signin' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:text-cyan-200'}`}
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signup')
+              setError(null)
+            }}
+            className={`rounded-lg px-3 py-1.5 transition ${mode === 'signup' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-300 hover:text-emerald-200'}`}
+          >
+            Criar conta
+          </button>
+        </div>
+
         <form className="mt-5 space-y-3" onSubmit={handleAuthSubmit}>
           <input
             required
@@ -656,16 +695,28 @@ function SignInView() {
 }
 
 function SetupView() {
-  const [setupForm, setSetupForm] = useState({ groupName: '', fullName: '' })
-  const { submitting, error, setError, bootstrapFamilyGroup } = useFinance()
+  const [setupMode, setSetupMode] = useState('create')
+  const [setupForm, setSetupForm] = useState({ groupName: '', fullName: '', inviteId: '' })
+  const { submitting, error, setError, bootstrapFamilyGroup, pendingGroupInvites, acceptGroupInvite } = useFinance()
   const { t } = usePreferences()
 
   const handleSetupSubmit = async (event) => {
     event.preventDefault()
 
     try {
-      await bootstrapFamilyGroup(setupForm)
-      setSetupForm({ groupName: '', fullName: '' })
+      if (setupMode === 'create') {
+        await bootstrapFamilyGroup({
+          groupName: setupForm.groupName,
+          fullName: setupForm.fullName,
+        })
+      } else {
+        await acceptGroupInvite({
+          inviteId: setupForm.inviteId,
+          fullName: setupForm.fullName,
+        })
+      }
+
+      setSetupForm({ groupName: '', fullName: '', inviteId: '' })
     } catch (setupError) {
       setError(setupError.message)
     }
@@ -677,21 +728,70 @@ function SetupView() {
         <h1 className="text-2xl font-bold">{t('setupGroupTitle')}</h1>
         <p className="mt-1 text-sm text-slate-400">{t('setupGroupSubtitle')}</p>
 
+        <div className="mt-4 inline-flex rounded-xl border border-slate-700 bg-slate-900/70 p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setSetupMode('create')
+              setError(null)
+            }}
+            className={`rounded-lg px-3 py-1.5 transition ${setupMode === 'create' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:text-cyan-200'}`}
+          >
+            Criar novo grupo
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSetupMode('join')
+              setError(null)
+            }}
+            className={`rounded-lg px-3 py-1.5 transition ${setupMode === 'join' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-300 hover:text-emerald-200'}`}
+          >
+            Entrar em grupo
+          </button>
+        </div>
+
         <form className="mt-5 space-y-3" onSubmit={handleSetupSubmit}>
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <label className="text-xs font-medium text-slate-300">{t('groupNameLabel')}</label>
-              <HelpHint text={t('groupNameHint')} />
+          {setupMode === 'create' ? (
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-300">{t('groupNameLabel')}</label>
+                <HelpHint text={t('groupNameHint')} />
+              </div>
+              <input
+                required
+                type="text"
+                placeholder={t('groupNameLabel')}
+                value={setupForm.groupName}
+                onChange={(event) => setSetupForm((prev) => ({ ...prev, groupName: event.target.value }))}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+              />
             </div>
-            <input
-              required
-              type="text"
-              placeholder={t('groupNameLabel')}
-              value={setupForm.groupName}
-              onChange={(event) => setSetupForm((prev) => ({ ...prev, groupName: event.target.value }))}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-            />
-          </div>
+          ) : (
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-300">Selecionar convite de grupo</label>
+                <HelpHint text="Escolha um grupo pendente para este email e finalize sua entrada em segundos." />
+              </div>
+              <select
+                required
+                value={setupForm.inviteId}
+                onChange={(event) => setSetupForm((prev) => ({ ...prev, inviteId: event.target.value }))}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+              >
+                <option value="">Selecione um grupo pendente</option>
+                {pendingGroupInvites.map((invite) => (
+                  <option key={invite.invite_id} value={invite.invite_id}>
+                    {invite.group_name} {invite.expires_at ? `• expira em ${new Date(invite.expires_at).toLocaleDateString('pt-BR')}` : ''}
+                  </option>
+                ))}
+              </select>
+              {pendingGroupInvites.length === 0 && (
+                <p className="mt-2 text-xs text-amber-300">Nenhum convite pendente para seu email no momento.</p>
+              )}
+            </div>
+          )}
+
           <div>
             <div className="mb-1 flex items-center gap-2">
               <label className="text-xs font-medium text-slate-300">{t('fullNameLabel')}</label>
@@ -709,10 +809,10 @@ function SetupView() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || (setupMode === 'join' && pendingGroupInvites.length === 0)}
             className="w-full rounded-lg bg-cyan-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? t('configuringGroup') : t('createGroup')}
+            {submitting ? t('configuringGroup') : setupMode === 'create' ? t('createGroup') : 'Entrar no grupo selecionado'}
           </button>
         </form>
 

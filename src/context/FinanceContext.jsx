@@ -42,8 +42,11 @@ const mapTransactionRow = (row) => ({
 export function FinanceProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [group, setGroup] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [members, setMembers] = useState([])
+  const [groupInvites, setGroupInvites] = useState([])
+  const [pendingGroupInvites, setPendingGroupInvites] = useState([])
   const [budgets, setBudgets] = useState([])
   const [transactionComments, setTransactionComments] = useState({})
   const [activityLogs, setActivityLogs] = useState([])
@@ -64,6 +67,60 @@ export function FinanceProvider({ children }) {
     if (profileError) throw profileError
     setProfile(data ?? null)
     return data
+  }, [])
+
+  const loadGroup = useCallback(async (groupId) => {
+    if (!groupId) {
+      setGroup(null)
+      return null
+    }
+
+    const { data, error: groupError } = await supabase
+      .from('family_groups')
+      .select('id, name, created_by, created_at')
+      .eq('id', groupId)
+      .maybeSingle()
+
+    if (groupError) throw groupError
+    setGroup(data ?? null)
+    return data
+  }, [])
+
+  const loadPendingGroupInvites = useCallback(async () => {
+    const { data, error: invitesError } = await supabase.rpc('list_my_pending_group_invites')
+    if (invitesError) {
+      if (invitesError.code === '42883') {
+        setPendingGroupInvites([])
+        return
+      }
+      throw invitesError
+    }
+
+    setPendingGroupInvites(data ?? [])
+  }, [])
+
+  const loadGroupInvites = useCallback(async (groupId) => {
+    if (!groupId) {
+      setGroupInvites([])
+      return
+    }
+
+    const { data, error: invitesError } = await supabase
+      .from('group_invites')
+      .select('id, group_id, invitee_email, status, created_at, expires_at')
+      .eq('group_id', groupId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+
+    if (invitesError) {
+      if (invitesError.code === '42P01') {
+        setGroupInvites([])
+        return
+      }
+      throw invitesError
+    }
+
+    setGroupInvites(data ?? [])
   }, [])
 
   const loadMembers = useCallback(async (groupId) => {
@@ -189,10 +246,14 @@ export function FinanceProvider({ children }) {
     if (!currentUser || !isSupabaseConfigured || !supabase) return
 
     setError(null)
+    await loadPendingGroupInvites()
+
     const currentProfile = await loadProfile(currentUser.id)
     if (!currentProfile?.group_id) {
+      setGroup(null)
       setTransactions([])
       setMembers([])
+      setGroupInvites([])
       setBudgets([])
       setTransactionComments({})
       setActivityLogs([])
@@ -200,13 +261,15 @@ export function FinanceProvider({ children }) {
     }
 
     await Promise.all([
+      loadGroup(currentProfile.group_id),
       loadMembers(currentProfile.group_id),
+      loadGroupInvites(currentProfile.group_id),
       loadTransactions(currentProfile.group_id),
       loadBudgets(currentProfile.group_id),
       loadTransactionComments(currentProfile.group_id),
       loadActivityLogs(currentProfile.group_id),
     ])
-  }, [loadActivityLogs, loadBudgets, loadMembers, loadProfile, loadTransactionComments, loadTransactions])
+  }, [loadActivityLogs, loadBudgets, loadGroup, loadGroupInvites, loadMembers, loadPendingGroupInvites, loadProfile, loadTransactionComments, loadTransactions])
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -260,7 +323,10 @@ export function FinanceProvider({ children }) {
 
       if (!nextSession?.user) {
         setProfile(null)
+        setGroup(null)
         setMembers([])
+        setGroupInvites([])
+        setPendingGroupInvites([])
         setTransactions([])
         setBudgets([])
         setTransactionComments({})
@@ -348,6 +414,128 @@ export function FinanceProvider({ children }) {
     if (bootstrapError) {
       setSubmitting(false)
       throw bootstrapError
+    }
+
+    await refreshWorkspace(user)
+    setSubmitting(false)
+  }
+
+  const updateGroupSettings = async ({ name }) => {
+    if (!profile?.group_id || !user || !isSupabaseConfigured || !supabase) return
+    if (profile.role !== 'owner') {
+      throw new Error('Apenas o owner pode alterar configuracoes do grupo.')
+    }
+
+    const normalizedName = (name || '').trim()
+    if (!normalizedName) {
+      throw new Error('Informe um nome valido para o grupo.')
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    const { error: updateGroupError } = await supabase
+      .from('family_groups')
+      .update({ name: normalizedName })
+      .eq('id', profile.group_id)
+
+    if (updateGroupError) {
+      setSubmitting(false)
+      throw updateGroupError
+    }
+
+    await loadGroup(profile.group_id)
+    setSubmitting(false)
+  }
+
+  const inviteGroupMember = async ({ email, expiresInDays = 7 }) => {
+    if (!profile?.group_id || !user || !isSupabaseConfigured || !supabase) return
+    if (profile.role !== 'owner') {
+      throw new Error('Apenas o owner pode convidar novos membros.')
+    }
+
+    const normalizedEmail = (email || '').trim().toLowerCase()
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      throw new Error('Informe um email valido para convite.')
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    const { data, error: inviteError } = await supabase.rpc('create_group_invite', {
+      p_group_id: profile.group_id,
+      p_invitee_email: normalizedEmail,
+      p_expires_in_days: Math.max(1, Number(expiresInDays) || 7),
+    })
+
+    if (inviteError) {
+      setSubmitting(false)
+      if (inviteError.code === '42883') {
+        throw new Error('Funcao create_group_invite nao encontrada. Aplique as migrations mais recentes no Supabase.')
+      }
+      throw inviteError
+    }
+
+    await Promise.all([
+      loadPendingGroupInvites(),
+      loadGroupInvites(profile.group_id),
+    ])
+    setSubmitting(false)
+    return data
+  }
+
+  const revokeGroupInvite = async (inviteId) => {
+    if (!profile?.group_id || !user || !isSupabaseConfigured || !supabase) return
+    if (profile.role !== 'owner') {
+      throw new Error('Apenas o owner pode revogar convites.')
+    }
+
+    if (!inviteId) {
+      throw new Error('Convite invalido.')
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    const { error: revokeError } = await supabase.rpc('revoke_group_invite', {
+      p_invite_id: inviteId,
+    })
+
+    if (revokeError) {
+      setSubmitting(false)
+      if (revokeError.code === '42883') {
+        throw new Error('Funcao revoke_group_invite nao encontrada. Aplique as migrations mais recentes no Supabase.')
+      }
+      throw revokeError
+    }
+
+    await Promise.all([
+      loadPendingGroupInvites(),
+      loadGroupInvites(profile.group_id),
+    ])
+    setSubmitting(false)
+  }
+
+  const acceptGroupInvite = async ({ inviteId, fullName }) => {
+    if (!user || !isSupabaseConfigured || !supabase) return
+    if (!inviteId) {
+      throw new Error('Selecione um convite para continuar.')
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    const { error: acceptError } = await supabase.rpc('accept_group_invite', {
+      p_invite_id: inviteId,
+      p_full_name: (fullName || '').trim() || null,
+    })
+
+    if (acceptError) {
+      setSubmitting(false)
+      if (acceptError.code === '42883') {
+        throw new Error('Funcao accept_group_invite nao encontrada. Aplique as migrations mais recentes no Supabase.')
+      }
+      throw acceptError
     }
 
     await refreshWorkspace(user)
@@ -643,6 +831,10 @@ export function FinanceProvider({ children }) {
     setError,
     user,
     profile,
+    group,
+    members,
+    groupInvites,
+    pendingGroupInvites,
     transactions,
     visibleTransactions,
     budgets,
@@ -658,6 +850,10 @@ export function FinanceProvider({ children }) {
     signOut,
     resetPassword,
     bootstrapFamilyGroup,
+    updateGroupSettings,
+    inviteGroupMember,
+    revokeGroupInvite,
+    acceptGroupInvite,
     addTransaction,
     deleteTransaction,
     addTransactionComment,

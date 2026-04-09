@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BadgeCheck, BellRing, Download, FileSpreadsheet, LogOut, Shield, Sparkles, Trash2, WalletCards } from 'lucide-react'
 import { formatCurrency } from '../utils/format'
 import { isResendConfigured } from '../lib/resend'
@@ -12,12 +12,20 @@ import { HelpHint } from './HelpHint'
 export function UserPage({
   profile,
   user,
+  group,
+  members = [],
+  groupInvites = [],
+  pendingGroupInvites = [],
   summary,
   transactions = [],
   activityLogs = [],
   budgets = [],
   onCreateBudget = () => {},
   onDeleteBudget = () => {},
+  onUpdateGroupSettings = () => {},
+  onInviteGroupMember = () => {},
+  onRevokeGroupInvite = () => {},
+  onAcceptGroupInvite = () => {},
   onSignOut,
   ownerFilter,
   onOwnerFilterChange,
@@ -25,12 +33,17 @@ export function UserPage({
 }) {
   const [budgetCategory, setBudgetCategory] = useState('Outros')
   const [budgetLimit, setBudgetLimit] = useState('')
+  const [groupNameDraft, setGroupNameDraft] = useState(group?.name || '')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteExpiresIn, setInviteExpiresIn] = useState('7')
+  const [fullNameForSwitch, setFullNameForSwitch] = useState(profile?.full_name || '')
   const { theme, language, accent, density, layoutMode, toggleTheme, setLanguage, setAccent, setDensity, setLayoutMode, t } = usePreferences()
   const isLight = theme === 'light'
   const isCompact = density === 'compact'
   const isFocusLayout = layoutMode === 'focus'
 
   const profileName = profile?.full_name || user?.email || 'Usuário'
+  const isOwner = profile?.role === 'owner'
   const initials = profileName
     .split(' ')
     .filter(Boolean)
@@ -65,6 +78,14 @@ export function UserPage({
     return Array.from(set)
   }, [transactions])
 
+  useEffect(() => {
+    setGroupNameDraft(group?.name || '')
+  }, [group?.name])
+
+  useEffect(() => {
+    setFullNameForSwitch(profile?.full_name || '')
+  }, [profile?.full_name])
+
   const handleCreateBudget = async (event) => {
     event.preventDefault()
     try {
@@ -95,6 +116,63 @@ export function UserPage({
       toast.success('Webhook de alertas respondeu com sucesso!')
     } catch (webhookError) {
       toast.error(`Falha no webhook: ${webhookError.message}`)
+    }
+  }
+
+  const handleGroupRename = async (event) => {
+    event.preventDefault()
+    try {
+      await onUpdateGroupSettings({ name: groupNameDraft })
+      toast.success('Nome do grupo atualizado com sucesso!')
+    } catch (groupError) {
+      toast.error(`Erro ao atualizar grupo: ${groupError.message}`)
+    }
+  }
+
+  const handleInviteSubmit = async (event) => {
+    event.preventDefault()
+    try {
+      const emails = inviteEmail
+        .split(/[\s,;]+/)
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean)
+
+      if (emails.length === 0) {
+        throw new Error('Informe ao menos um email válido.')
+      }
+
+      await Promise.all(
+        emails.map((email) => onInviteGroupMember({
+          email,
+          expiresInDays: Number(inviteExpiresIn) || 7,
+        })),
+      )
+
+      setInviteEmail('')
+      toast.success(`${emails.length} convite(s) enviado(s) com sucesso!`)
+    } catch (inviteError) {
+      toast.error(`Erro ao enviar convite: ${inviteError.message}`)
+    }
+  }
+
+  const handleRevokeInvite = async (inviteId) => {
+    try {
+      await onRevokeGroupInvite(inviteId)
+      toast.success('Convite revogado.')
+    } catch (revokeError) {
+      toast.error(`Erro ao revogar convite: ${revokeError.message}`)
+    }
+  }
+
+  const handleAcceptInvite = async (inviteId) => {
+    try {
+      await onAcceptGroupInvite({
+        inviteId,
+        fullName: fullNameForSwitch,
+      })
+      toast.success('Grupo selecionado com sucesso!')
+    } catch (acceptError) {
+      toast.error(`Erro ao trocar de grupo: ${acceptError.message}`)
     }
   }
 
@@ -256,6 +334,158 @@ export function UserPage({
           </div>
         </div>
       </div>
+
+      <section className={`rounded-2xl border ${isCompact ? 'p-3' : 'p-4'} ${surfaceClass}`}>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>Configuração de grupos</h3>
+          <span className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] ${isLight ? 'border-slate-200 text-slate-600' : 'border-slate-700 text-slate-300'}`}>
+            {isOwner ? 'Owner' : 'Membro'}
+          </span>
+        </div>
+
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <div className={`rounded-xl border ${isCompact ? 'p-3' : 'p-4'} ${surfaceSoftClass}`}>
+            <p className={`text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>Grupo atual</p>
+            <p className={`mt-1 text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{group?.name || 'Sem nome definido'}</p>
+            <p className={`mt-1 text-xs ${textMutedClass}`}>ID: {profile?.group_id || 'Não informado'}</p>
+
+            {isOwner ? (
+              <form className="mt-3 space-y-2" onSubmit={handleGroupRename}>
+                <input
+                  type="text"
+                  value={groupNameDraft}
+                  onChange={(event) => setGroupNameDraft(event.target.value)}
+                  placeholder="Nome do grupo"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                  required
+                />
+                <button
+                  type="submit"
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${accentButtonClass}`}
+                >
+                  Salvar nome do grupo
+                </button>
+              </form>
+            ) : (
+              <p className={`mt-3 text-xs ${textMutedClass}`}>Somente owners podem alterar o nome do grupo.</p>
+            )}
+
+            <div className="mt-4">
+              <p className={`text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>Membros atuais</p>
+              <ul className="mt-2 space-y-1.5">
+                {members.length > 0 ? (
+                  members.map((member) => (
+                    <li key={member.id} className={`rounded-lg border px-2.5 py-1.5 text-xs ${surfaceClass}`}>
+                      {member.full_name || 'Membro'}
+                    </li>
+                  ))
+                ) : (
+                  <li className={`text-xs ${textMutedClass}`}>Nenhum membro listado.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+
+          <div className={`rounded-xl border ${isCompact ? 'p-3' : 'p-4'} ${surfaceSoftClass}`}>
+            <p className={`text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>Convites e seleção de grupos</p>
+
+            {isOwner && (
+              <form className="mt-3 grid gap-2 sm:grid-cols-[1fr_96px_auto]" onSubmit={handleInviteSubmit}>
+                <input
+                  type="text"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder="email1@exemplo.com, email2@exemplo.com"
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                  required
+                />
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={inviteExpiresIn}
+                  onChange={(event) => setInviteExpiresIn(event.target.value)}
+                  placeholder="Dias"
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                  title="Validade em dias"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/15"
+                >
+                  Convidar
+                </button>
+              </form>
+            )}
+
+            <div className="mt-3">
+              {isOwner && (
+                <>
+                  <p className={`text-xs ${textMutedClass}`}>Convites enviados pelo seu grupo:</p>
+                  <ul className="mt-2 space-y-2">
+                    {groupInvites.length > 0 ? (
+                      groupInvites.map((invite) => (
+                        <li key={invite.id} className={`rounded-lg border px-3 py-2 ${surfaceClass}`}>
+                          <p className={`text-sm font-medium ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{invite.invitee_email}</p>
+                          <p className={`mt-1 text-[11px] ${textMutedClass}`}>
+                            Expira em: {invite.expires_at ? new Date(invite.expires_at).toLocaleDateString('pt-BR') : 'sem prazo'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeInvite(invite.id)}
+                            className="mt-2 rounded-md border border-red-500/25 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/15"
+                          >
+                            Revogar
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li className={`text-xs ${textMutedClass}`}>Nenhum convite ativo enviado.</li>
+                    )}
+                  </ul>
+                </>
+              )}
+
+              <p className={`mt-3 text-xs ${textMutedClass}`}>Convites recebidos para seu email ({user?.email || 'sem email'}):</p>
+              <ul className="mt-2 space-y-2">
+                {pendingGroupInvites.length > 0 ? (
+                  pendingGroupInvites.map((invite) => (
+                    <li key={invite.invite_id} className={`rounded-lg border px-3 py-2 ${surfaceClass}`}>
+                      <p className={`text-sm font-medium ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{invite.group_name}</p>
+                      <p className={`mt-1 text-[11px] ${textMutedClass}`}>
+                        Expira em: {invite.expires_at ? new Date(invite.expires_at).toLocaleDateString('pt-BR') : 'sem prazo'}
+                      </p>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptInvite(invite.invite_id)}
+                          className="rounded-md border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/15"
+                        >
+                          Entrar neste grupo
+                        </button>
+                      </div>
+                    </li>
+                  ))
+                ) : (
+                  <li className={`text-xs ${textMutedClass}`}>Nenhum convite pendente.</li>
+                )}
+              </ul>
+            </div>
+
+            <div className="mt-3">
+              <label className={`mb-1 block text-[11px] uppercase tracking-[0.14em] ${textMutedClass}`}>Seu nome para ingressar/trocar</label>
+              <input
+                type="text"
+                value={fullNameForSwitch}
+                onChange={(event) => setFullNameForSwitch(event.target.value)}
+                placeholder="Seu nome completo"
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className={`rounded-2xl border ${isCompact ? 'p-3' : 'p-4'} ${surfaceClass}`}>
         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{t('sharedBudgets')}</h3>

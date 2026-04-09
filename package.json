@@ -1,8 +1,8 @@
 {
-  "name": "finan-as",
+  "name": "MyDinDin",
   "private": true,
-  "version": "2.2.4",
-  "description": "FinançasAPP - App de gestão financeira multiusuário com PWA",
+  "version": "2.2.5",
+  "description": "MyDinDin - App de gestão financeira multiusuário com PWA",
   "type": "module",
   "scripts": {
     "dev": "next dev",

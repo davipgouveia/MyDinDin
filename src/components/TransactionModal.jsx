@@ -13,6 +13,7 @@ const defaultForm = {
 
 export default function TransactionModal({ open, onClose, onSave, submitting = false }) {
   const [form, setForm] = useState(defaultForm)
+  const isIncome = form.type === 'income'
 
   if (!open) return null
 
@@ -110,8 +111,8 @@ export default function TransactionModal({ open, onClose, onSave, submitting = f
 
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <label className="text-xs font-medium text-slate-300">Vencimento</label>
-              <HelpHint text="Use este campo para lembrar quando a conta vence. Pode ficar em branco." />
+              <label className="text-xs font-medium text-slate-300">{isIncome ? 'Data prevista' : 'Vencimento'}</label>
+              <HelpHint text={isIncome ? 'Informe quando você espera receber este valor. Pode ficar em branco.' : 'Use este campo para lembrar quando a conta vence. Pode ficar em branco.'} />
             </div>
             <input
               type="date"
@@ -122,8 +123,8 @@ export default function TransactionModal({ open, onClose, onSave, submitting = f
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-slate-300">Pagamento concluído</label>
-            <HelpHint text="Marque quando a transação já estiver paga ou recebida." />
+            <label className="text-xs font-medium text-slate-300">{isIncome ? 'Recebimento concluído' : 'Pagamento concluído'}</label>
+            <HelpHint text={isIncome ? 'Marque quando essa receita já tiver sido recebida.' : 'Marque quando a transação já estiver paga.'} />
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
@@ -131,7 +132,7 @@ export default function TransactionModal({ open, onClose, onSave, submitting = f
               checked={form.isPaid}
               onChange={(event) => setForm((prev) => ({ ...prev, isPaid: event.target.checked }))}
             />
-            Já foi pago
+            {isIncome ? 'Já foi recebido' : 'Já foi pago'}
           </label>
 
           <button

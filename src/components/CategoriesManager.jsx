@@ -53,9 +53,9 @@ export function CategoriesManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-semibold text-slate-300">Categorias</h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

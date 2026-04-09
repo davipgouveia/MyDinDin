@@ -9,7 +9,9 @@ import { parseDateValue } from '../utils/date'
 const TransactionCategoryContext = createContext(null)
 const BACKUP_TYPES = {
   customCategories: 'custom_categories',
+  customIncomeCategories: 'custom_income_categories',
   categoryOrder: 'category_order',
+  incomeCategoryOrder: 'income_category_order',
   reminders: 'payment_reminders',
   recurring: 'recurring_payments',
 }
@@ -19,12 +21,14 @@ export function TransactionCategoryProvider({ children }) {
   const [categories, setCategories] = useState(EXPENSE_CATEGORIES)
   const [incomeCategories, setIncomeCategories] = useState(INCOME_CATEGORIES)
   const [customCategories, setCustomCategories] = useState([])
+  const [customIncomeCategories, setCustomIncomeCategories] = useState([])
   const [dailyStats, setDailyStats] = useState({})
   const [monthlyStats, setMonthlyStats] = useState({})
   const [paymentReminders, setPaymentReminders] = useState([])
   const [recurringPayments, setRecurringPayments] = useState([])
   const [categoryOrder, setCategoryOrder] = useState([])
   const [savedCategoryOrder, setSavedCategoryOrder] = useState([])
+  const [savedIncomeCategoryOrder, setSavedIncomeCategoryOrder] = useState([])
 
   const persistBackup = async (type, payload) => {
     if (!user?.id) return
@@ -55,15 +59,23 @@ export function TransactionCategoryProvider({ children }) {
   useEffect(() => {
     if (user?.id) {
       const storedCustom = localStorage.getItem(`${BACKUP_TYPES.customCategories}_${user.id}`)
+      const storedCustomIncome = localStorage.getItem(`${BACKUP_TYPES.customIncomeCategories}_${user.id}`)
       const storedOrder = localStorage.getItem(`${BACKUP_TYPES.categoryOrder}_${user.id}`)
+      const storedIncomeOrder = localStorage.getItem(`${BACKUP_TYPES.incomeCategoryOrder}_${user.id}`)
       const storedReminders = localStorage.getItem(`${BACKUP_TYPES.reminders}_${user.id}`)
       const storedRecurring = localStorage.getItem(`${BACKUP_TYPES.recurring}_${user.id}`)
 
       if (storedCustom) {
         setCustomCategories(JSON.parse(storedCustom))
       }
+      if (storedCustomIncome) {
+        setCustomIncomeCategories(JSON.parse(storedCustomIncome))
+      }
       if (storedOrder) {
         setSavedCategoryOrder(JSON.parse(storedOrder))
+      }
+      if (storedIncomeOrder) {
+        setSavedIncomeCategoryOrder(JSON.parse(storedIncomeOrder))
       }
       if (storedReminders) {
         setPaymentReminders(JSON.parse(storedReminders))
@@ -94,7 +106,9 @@ export function TransactionCategoryProvider({ children }) {
       const backupMap = new Map((data || []).map((row) => [row.data_type, row.payload]))
 
       const remoteCustom = backupMap.get(BACKUP_TYPES.customCategories)
+      const remoteCustomIncome = backupMap.get(BACKUP_TYPES.customIncomeCategories)
       const remoteOrder = backupMap.get(BACKUP_TYPES.categoryOrder)
+      const remoteIncomeOrder = backupMap.get(BACKUP_TYPES.incomeCategoryOrder)
       const remoteReminders = backupMap.get(BACKUP_TYPES.reminders)
       const remoteRecurring = backupMap.get(BACKUP_TYPES.recurring)
 
@@ -102,9 +116,17 @@ export function TransactionCategoryProvider({ children }) {
         setCustomCategories(remoteCustom)
         localStorage.setItem(`${BACKUP_TYPES.customCategories}_${user.id}`, JSON.stringify(remoteCustom))
       }
+      if (Array.isArray(remoteCustomIncome)) {
+        setCustomIncomeCategories(remoteCustomIncome)
+        localStorage.setItem(`${BACKUP_TYPES.customIncomeCategories}_${user.id}`, JSON.stringify(remoteCustomIncome))
+      }
       if (Array.isArray(remoteOrder)) {
         setSavedCategoryOrder(remoteOrder)
         localStorage.setItem(`${BACKUP_TYPES.categoryOrder}_${user.id}`, JSON.stringify(remoteOrder))
+      }
+      if (Array.isArray(remoteIncomeOrder)) {
+        setSavedIncomeCategoryOrder(remoteIncomeOrder)
+        localStorage.setItem(`${BACKUP_TYPES.incomeCategoryOrder}_${user.id}`, JSON.stringify(remoteIncomeOrder))
       }
       if (Array.isArray(remoteReminders)) {
         setPaymentReminders(remoteReminders)
@@ -120,51 +142,72 @@ export function TransactionCategoryProvider({ children }) {
   }, [profile?.group_id, user?.id])
 
   // Adicionar categoria customizada
-  const addCustomCategory = (category) => {
+  const addCustomCategory = (category, type = 'expense') => {
     const newCategory = {
       id: `custom_${Date.now()}`,
       ...category,
       isCustom: true,
     }
 
-    const updated = [...customCategories, newCategory]
-    setCustomCategories(updated)
-    persistBackup(BACKUP_TYPES.customCategories, updated)
+    if (type === 'income') {
+      const updatedIncome = [...customIncomeCategories, newCategory]
+      setCustomIncomeCategories(updatedIncome)
+      persistBackup(BACKUP_TYPES.customIncomeCategories, updatedIncome)
+    } else {
+      const updated = [...customCategories, newCategory]
+      setCustomCategories(updated)
+      persistBackup(BACKUP_TYPES.customCategories, updated)
+    }
+
     toast.success(`Categoria "${category.name}" criada!`)
     return newCategory
   }
 
   // Remover categoria customizada
-  const removeCustomCategory = (categoryId) => {
-    const updated = customCategories.filter((cat) => cat.id !== categoryId)
-    setCustomCategories(updated)
-    persistBackup(BACKUP_TYPES.customCategories, updated)
+  const removeCustomCategory = (categoryId, type = 'expense') => {
+    if (type === 'income') {
+      const updatedIncome = customIncomeCategories.filter((cat) => cat.id !== categoryId)
+      setCustomIncomeCategories(updatedIncome)
+      persistBackup(BACKUP_TYPES.customIncomeCategories, updatedIncome)
+    } else {
+      const updated = customCategories.filter((cat) => cat.id !== categoryId)
+      setCustomCategories(updated)
+      persistBackup(BACKUP_TYPES.customCategories, updated)
+    }
+
     toast.success('Categoria removida!')
   }
 
   // Obter todas as categorias (padrão + customizadas)
   const getAllCategories = (type = 'expense') => {
     const defaultCats = type === 'income' ? incomeCategories : categories
-    if (type === 'income') return defaultCats
+    if (type === 'income') return [...defaultCats, ...customIncomeCategories]
     return [...defaultCats, ...customCategories]
   }
 
   // Salvar ordenação customizada de categorias
-  const saveCategoryOrder = (order) => {
-    setSavedCategoryOrder(order)
-    persistBackup(BACKUP_TYPES.categoryOrder, order)
+  const saveCategoryOrder = (order, type = 'expense') => {
+    if (type === 'income') {
+      setSavedIncomeCategoryOrder(order)
+      persistBackup(BACKUP_TYPES.incomeCategoryOrder, order)
+    } else {
+      setSavedCategoryOrder(order)
+      persistBackup(BACKUP_TYPES.categoryOrder, order)
+    }
+
     toast.success('Ordem de categorias salva!')
   }
 
   // Obter categorias na ordem customizada
   const getOrderedCategories = (type = 'expense') => {
     const allCats = getAllCategories(type)
-    if (!savedCategoryOrder.length) return allCats
+    const savedOrder = type === 'income' ? savedIncomeCategoryOrder : savedCategoryOrder
+    if (!savedOrder.length) return allCats
 
     const ordered = []
     const remaining = [...allCats]
 
-    for (const id of savedCategoryOrder) {
+    for (const id of savedOrder) {
       const index = remaining.findIndex((cat) => cat.id === id)
       if (index !== -1) {
         ordered.push(remaining[index])
@@ -314,6 +357,7 @@ export function TransactionCategoryProvider({ children }) {
     categories,
     incomeCategories,
     customCategories,
+    customIncomeCategories,
     getAllCategories,
     addCustomCategory,
     removeCustomCategory,
@@ -324,6 +368,7 @@ export function TransactionCategoryProvider({ children }) {
     setCategoryOrder,
     saveCategoryOrder,
     savedCategoryOrder,
+    savedIncomeCategoryOrder,
 
     // Lembretes
     paymentReminders,

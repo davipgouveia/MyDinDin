@@ -36,16 +36,16 @@ export default function TransactionItem({
       transition={{ duration: 0.2, ease: 'easeOut' }}
       className="rounded-xl border border-slate-800 bg-slate-900/80 p-3"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-2">
           {isIncome ? (
             <ArrowUpCircle className="mt-0.5 text-income" size={18} />
           ) : (
             <ArrowDownCircle className="mt-0.5 text-expense" size={18} />
           )}
-          <div>
-            <p className="text-sm font-medium text-slate-100">{transaction.description}</p>
-            <p className="text-xs text-slate-400">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-slate-100">{transaction.description}</p>
+            <p className="break-words text-xs text-slate-400">
               {transaction.category} • {transaction.owner} • {formatDate(transaction.date)}
               {transaction.dueDate ? ` • vence ${formatDate(transaction.dueDate)}` : ''}
               {transaction.dueDate ? ` • ${isPaid ? 'pago' : 'em aberto'}` : ''}
@@ -53,12 +53,12 @@ export default function TransactionItem({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 sm:justify-start">
           <motion.p
             initial={{ scale: 0.96, opacity: 0.9 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.18 }}
-            className={`text-sm font-semibold ${isIncome ? 'text-income' : 'text-expense'}`}
+            className={`shrink-0 text-sm font-semibold ${isIncome ? 'text-income' : 'text-expense'}`}
           >
             {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
           </motion.p>

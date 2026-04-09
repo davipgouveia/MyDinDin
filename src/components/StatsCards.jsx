@@ -14,27 +14,36 @@ import {
 } from 'recharts'
 import { useDailyMonthlyStats } from '../hooks/useStats'
 
+const dailyContainerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: 'easeOut' },
+  },
+}
+
+const monthlyContainerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: 'easeOut', delay: 0.2 },
+  },
+}
+
+const statsItemVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: { opacity: 1, x: 0 },
+}
+
 export function DailyStatsCard() {
   const { totalDailyExpenses, totalDailyIncomes, balance } = useDailyMonthlyStats()
   const isPositive = balance >= 0
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, ease: 'easeOut' },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0 },
-  }
-
   return (
     <motion.div
-      variants={containerVariants}
+      variants={dailyContainerVariants}
       initial="hidden"
       animate="visible"
       className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-4"
@@ -45,7 +54,7 @@ export function DailyStatsCard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <motion.div variants={itemVariants} className="rounded-lg bg-slate-900/50 p-3">
+        <motion.div variants={statsItemVariants} className="rounded-lg bg-slate-900/50 p-3">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <TrendingDown size={14} className="text-red-400" />
             Gastos
@@ -56,7 +65,7 @@ export function DailyStatsCard() {
         </motion.div>
 
         <motion.div
-          variants={itemVariants}
+          variants={statsItemVariants}
           transition={{ delay: 0.1 }}
           className="rounded-lg bg-slate-900/50 p-3"
         >
@@ -70,7 +79,7 @@ export function DailyStatsCard() {
         </motion.div>
 
         <motion.div
-          variants={itemVariants}
+          variants={statsItemVariants}
           transition={{ delay: 0.2 }}
           className="col-span-2 rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 p-3"
         >
@@ -90,23 +99,9 @@ export function DailyStatsCard() {
 export function MonthlyStatsCard() {
   const { totalMonthlyExpenses, avgDailyExpense, largestExpenseCategory } = useDailyMonthlyStats()
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, ease: 'easeOut', delay: 0.2 },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0 },
-  }
-
   return (
     <motion.div
-      variants={containerVariants}
+      variants={monthlyContainerVariants}
       initial="hidden"
       animate="visible"
       className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900 p-4"
@@ -117,7 +112,7 @@ export function MonthlyStatsCard() {
       </div>
 
       <div className="space-y-3">
-        <motion.div variants={itemVariants} className="rounded-lg bg-slate-900/50 p-3">
+        <motion.div variants={statsItemVariants} className="rounded-lg bg-slate-900/50 p-3">
           <div className="text-xs text-slate-400">Total de Gastos</div>
           <div className="mt-1 text-lg font-bold text-red-400">
             R$ {totalMonthlyExpenses.toFixed(2)}
@@ -125,7 +120,7 @@ export function MonthlyStatsCard() {
         </motion.div>
 
         <motion.div
-          variants={itemVariants}
+          variants={statsItemVariants}
           transition={{ delay: 0.1 }}
           className="rounded-lg bg-slate-900/50 p-3"
         >
@@ -137,7 +132,7 @@ export function MonthlyStatsCard() {
 
         {largestExpenseCategory && (
           <motion.div
-            variants={itemVariants}
+            variants={statsItemVariants}
             transition={{ delay: 0.2 }}
             className="rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 p-3"
           >

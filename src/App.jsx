@@ -1,9 +1,9 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Plus, ServerCrash, Settings } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import SummaryCard from './components/SummaryCard'
 import TransactionItem from './components/TransactionItem'
 import { LoginScreen } from './components/LoginScreen'
@@ -24,7 +24,6 @@ import { useFinance } from './context/FinanceContext'
 import { TransactionCategoryProvider, useTransactionCategory } from './context/TransactionCategoryContext'
 import { useFinancialAI, useFinancialBudget } from './hooks/useFinancialAI'
 import { ToastProvider, toast } from './hooks/useToast'
-import { isResendConfigured } from './lib/resend'
 import { APP_BUILD_LABEL } from './constants/appMeta'
 import { usePreferences } from './context/PreferencesContext'
 
@@ -46,6 +45,7 @@ function DashboardContent() {
     addCustomCategory,
     removeCustomCategory,
     getOrderedCategories,
+    saveCategoryOrder,
   } = useTransactionCategory()
 
   const { recommendations, insights, dismissRecommendation } = useFinancialAI()
@@ -71,17 +71,22 @@ function DashboardContent() {
   } = useFinance()
   const { theme, layoutMode, t, toggleTheme } = usePreferences()
   const isLight = theme === 'light'
-  const shellWidthStyle = {
-    maxWidth:
-      layoutMode === 'focus'
-        ? '64rem'
-        : layoutMode === 'expanded'
-          ? '90rem'
-          : '80rem',
-  }
+  const shellWidthStyle = useMemo(
+    () => ({
+      maxWidth:
+        layoutMode === 'focus'
+          ? '64rem'
+          : layoutMode === 'expanded'
+            ? '90rem'
+            : '80rem',
+    }),
+    [layoutMode],
+  )
 
   const shellClass = isLight ? 'bg-slate-50 text-slate-900' : 'bg-slate-950 text-white'
-  const headerClass = isLight ? 'border-slate-200 bg-white/85 text-slate-900 shadow-slate-200/50' : 'border-slate-800/80 bg-slate-950/70 text-white'
+  const headerClass = isLight
+    ? 'border-slate-200/90 bg-white/90 text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.06)]'
+    : 'border-slate-800/80 bg-slate-950/75 text-white shadow-[0_14px_34px_rgba(2,6,23,0.35)]'
   const panelClass = isLight ? 'border-slate-200 bg-white/90 text-slate-900' : 'border-slate-800 bg-slate-950/70 text-white'
   const panelSoftClass = isLight ? 'border-slate-200 bg-white/80 text-slate-900' : 'border-slate-800 bg-slate-900/50 text-white'
 
@@ -91,15 +96,15 @@ function DashboardContent() {
     [paymentReminders],
   )
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut()
     } catch (signOutError) {
       setError(signOutError.message)
     }
-  }
+  }, [setError, signOut])
 
-  const handleAddTransaction = async (formData) => {
+  const handleAddTransaction = useCallback(async (formData) => {
     const resolvedType = formData.type || transactionType || 'expense'
 
     try {
@@ -118,76 +123,94 @@ function DashboardContent() {
     } catch (addError) {
       toast.error(`Erro: ${addError.message}`)
     }
-  }
+  }, [addTransaction, transactionType])
 
-  const handleRemoveReminder = (reminderId) => {
+  const handleRemoveReminder = useCallback((reminderId) => {
     removePaymentReminder(reminderId)
     toast.success('Lembrete removido!')
-  }
+  }, [removePaymentReminder])
 
-  const handleCompleteReminder = (reminderId) => {
+  const handleCompleteReminder = useCallback((reminderId) => {
     updatePaymentReminder(reminderId, { completed: true })
     toast.success('Lembrete marcado como concluído!')
-  }
+  }, [updatePaymentReminder])
 
-  const handleRemoveRecurring = (paymentId) => {
+  const handleRemoveRecurring = useCallback((paymentId) => {
     removeRecurringPayment(paymentId)
     toast.success('Pagamento recorrente removido!')
-  }
+  }, [removeRecurringPayment])
 
-  const openQuickAdd = (type) => {
+  const openQuickAdd = useCallback((type) => {
     setTransactionType(type)
     setQuickAddOpen(false)
     setAdvancedModalOpen(true)
-  }
+  }, [])
 
-  const pageTabs = [
-    { id: 'dashboard', label: t('dashboard') },
-    { id: 'stats', label: t('stats') },
-    { id: 'categories', label: t('categories') },
-    { id: 'reminders', label: t('reminders') },
-    { id: 'ai', label: t('ai') },
-    { id: 'user', label: t('user') },
-  ]
+  const toggleSettings = useCallback(() => {
+    setShowSettings((current) => !current)
+  }, [])
+
+  const pageTabs = useMemo(
+    () => [
+      { id: 'dashboard', label: t('dashboard') },
+      { id: 'stats', label: t('stats') },
+      { id: 'categories', label: t('categories') },
+      { id: 'reminders', label: t('reminders') },
+      { id: 'ai', label: t('ai') },
+      { id: 'user', label: t('user') },
+    ],
+    [t],
+  )
 
   return (
     <main
-      className={`mx-auto flex min-h-screen w-full flex-col gap-4 px-3 pb-36 pt-3 sm:px-4 md:px-6 md:pb-8 md:pt-6 ${shellClass}`}
+      className={`mx-auto flex min-h-screen w-full flex-col gap-4 px-3 pb-[9.5rem] pt-3 sm:px-4 md:px-6 md:pb-16 md:pt-6 ${shellClass}`}
       style={shellWidthStyle}
     >
-      <header className={`rounded-[1.75rem] border p-4 shadow-xl backdrop-blur-xl md:p-5 ${headerClass}`}>
-        <div className="flex items-start justify-between gap-3">
+      <motion.header
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className={`rounded-[1.75rem] border p-4 backdrop-blur-xl md:p-5 ${headerClass}`}
+      >
+        <div className="flex items-start justify-between gap-3 sm:items-center">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <div className="rounded-[1.5rem] border border-cyan-400/20 bg-cyan-400/10 p-2.5 shadow-[0_0_40px_rgba(34,211,238,0.12)] sm:p-3">
+            <div className="rounded-[1.4rem] border border-cyan-400/10 bg-cyan-400/[0.07] p-2.5 sm:p-3">
               <Logo size="medium" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">MyDinDin</h1>
-              <p className={`text-sm ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>{t('appSubtitle')}</p>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                MyDinDin
+              </h1>
+              <p className={`mt-0.5 text-sm ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>{t('appSubtitle')}</p>
               <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
-                <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 text-cyan-300">
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/8 px-2.5 py-1 text-cyan-300">
                   {APP_BUILD_LABEL}
-                </span>
-                <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
-                  Resend {isResendConfigured() ? 'ativo' : 'pendente'}
                 </span>
               </div>
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.97 }}
             type="button"
-            onClick={() => setShowSettings((current) => !current)}
-            className="button-secondary rounded-xl border p-2.5 text-slate-300"
+            onClick={toggleSettings}
+            className="button-secondary shrink-0 self-start rounded-xl border border-slate-700/60 bg-slate-900/55 p-2.5 text-slate-300 transition hover:border-slate-500 sm:self-center"
             aria-label={t('settings')}
             title={t('settings')}
           >
             <Settings size={16} />
-          </button>
+          </motion.button>
         </div>
 
         {showSettings && (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="mt-3 flex flex-wrap items-center gap-3"
+          >
             <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">
               <span>{t('theme')}:</span>
               <span>{theme === 'light' ? t('lightTheme') : t('darkTheme')}</span>
@@ -208,9 +231,9 @@ function DashboardContent() {
             >
               {t('signOut')}
             </button>
-          </div>
+          </motion.div>
         )}
-      </header>
+      </motion.header>
 
       {error && (
         <section className={`rounded-xl border px-3 py-2 text-xs ${isLight ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-rose-700/40 bg-rose-900/20 text-rose-200'}`}>
@@ -229,7 +252,7 @@ function DashboardContent() {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => setActivePage(tab.id)}
-            className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+            className={`relative overflow-hidden whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition-all ${
               activePage === tab.id
                 ? 'bg-cyan-500/20 text-cyan-300'
                 : isLight
@@ -237,11 +260,27 @@ function DashboardContent() {
                   : 'bg-slate-800/30 text-slate-400 hover:bg-slate-700/30'
             }`}
           >
-            {tab.label}
+            {activePage === tab.id && (
+              <motion.span
+                layoutId="tab-active-pill"
+                className="absolute inset-0 bg-cyan-500/15"
+                transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+              />
+            )}
+            <span className="relative z-10">{tab.label}</span>
           </motion.button>
         ))}
       </motion.div>
 
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activePage}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          className="min-h-[30rem]"
+        >
       {activePage === 'dashboard' && (
         <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="grid gap-4">
@@ -339,15 +378,31 @@ function DashboardContent() {
       )}
 
       {activePage === 'categories' && (
-        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-[1.75rem] border border-slate-800 bg-gradient-to-br from-slate-950 to-slate-900 p-4 md:p-5">
-          <CategoriesManager
-            categories={getOrderedCategories('expense')}
-            onAddCustom={(category) => {
-              addCustomCategory(category)
-            }}
-            onRemoveCustom={removeCustomCategory}
-          />
-        </motion.section>
+        <section className="grid gap-4 lg:grid-cols-2">
+          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-[1.75rem] border border-slate-800 bg-gradient-to-br from-slate-950 to-slate-900 p-4 md:p-5">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Categorias de despesa</h3>
+            <CategoriesManager
+              categories={getOrderedCategories('expense')}
+              onReorder={(order) => saveCategoryOrder(order, 'expense')}
+              onAddCustom={(category) => {
+                addCustomCategory(category, 'expense')
+              }}
+              onRemoveCustom={(categoryId) => removeCustomCategory(categoryId, 'expense')}
+            />
+          </motion.section>
+
+          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-[1.75rem] border border-slate-800 bg-gradient-to-br from-slate-950 to-slate-900 p-4 md:p-5">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Categorias de receita</h3>
+            <CategoriesManager
+              categories={getOrderedCategories('income')}
+              onReorder={(order) => saveCategoryOrder(order, 'income')}
+              onAddCustom={(category) => {
+                addCustomCategory(category, 'income')
+              }}
+              onRemoveCustom={(categoryId) => removeCustomCategory(categoryId, 'income')}
+            />
+          </motion.section>
+        </section>
       )}
 
       {activePage === 'reminders' && (
@@ -413,6 +468,8 @@ function DashboardContent() {
           users={users}
         />
       )}
+        </motion.div>
+      </AnimatePresence>
 
       <motion.button
         whileHover={{ scale: 1.08 }}
@@ -435,8 +492,8 @@ function DashboardContent() {
         transactionType={transactionType}
       />
 
+      <AppFooter className="mt-6 pb-2" />
       <MobileBottomNav activePage={activePage} onNavigate={setActivePage} onQuickAdd={() => setQuickAddOpen(true)} />
-      <AppFooter className="mt-2 pb-2 md:pb-0" />
     </main>
   )
 }

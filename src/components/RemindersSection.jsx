@@ -2,29 +2,49 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Trash2, CheckCircle2, Clock, Calendar, AlertCircle } from 'lucide-react'
 import { formatDateBR, parseDateValue } from '../utils/date'
 
-export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, onComplete = () => {} }) {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
+const reminderContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
     },
-  }
+  },
+}
 
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: 20 },
-  }
+const reminderItemVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: 20 },
+}
 
+const recurringContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+}
+
+const recurringItemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+}
+
+function getDaysLeft(dueDate) {
+  const now = new Date()
+  const due = parseDateValue(dueDate)
+  if (!due) return null
+  return Math.ceil((due - now) / (1000 * 60 * 60 * 24))
+}
+
+export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, onComplete = () => {} }) {
   const getUrgencyColor = (dueDate) => {
-    const now = new Date()
-    const due = parseDateValue(dueDate)
-    if (!due) return 'border-slate-600/40 bg-slate-800/20'
-
-    const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24))
+    const daysLeft = getDaysLeft(dueDate)
+    if (daysLeft === null) return 'border-slate-600/40 bg-slate-800/20'
 
     if (daysLeft <= 1) return 'border-red-500/30 bg-red-500/5'
     if (daysLeft <= 3) return 'border-yellow-500/30 bg-yellow-500/5'
@@ -32,11 +52,8 @@ export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, o
   }
 
   const getUrgencyIcon = (dueDate) => {
-    const now = new Date()
-    const due = parseDateValue(dueDate)
-    if (!due) return <Calendar size={16} className="text-slate-400" />
-
-    const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24))
+    const daysLeft = getDaysLeft(dueDate)
+    if (daysLeft === null) return <Calendar size={16} className="text-slate-400" />
 
     if (daysLeft <= 1) return <AlertCircle size={16} className="text-red-400" />
     if (daysLeft <= 3) return <Clock size={16} className="text-yellow-400" />
@@ -56,7 +73,7 @@ export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, o
   }
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible">
+    <motion.div variants={reminderContainerVariants} initial="hidden" animate="visible">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-300">
         <Bell size={16} className="text-cyan-400" />
         Lembretes de Pagamento
@@ -67,7 +84,7 @@ export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, o
           {reminders.map((reminder) => (
             <motion.div
               key={reminder.id}
-              variants={itemVariants}
+              variants={reminderItemVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
@@ -113,22 +130,6 @@ export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, o
 }
 
 export function RecurringPaymentsSection({ payments = [], onDelete = () => {}, onEdit = () => {} }) {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -20 },
-  }
-
   if (!payments.length) {
     return (
       <motion.div
@@ -142,7 +143,7 @@ export function RecurringPaymentsSection({ payments = [], onDelete = () => {}, o
   }
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible">
+    <motion.div variants={recurringContainerVariants} initial="hidden" animate="visible">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-300">
         <Clock size={16} className="text-purple-400" />
         Pagamentos Recorrentes
@@ -153,7 +154,7 @@ export function RecurringPaymentsSection({ payments = [], onDelete = () => {}, o
           {payments.map((payment) => (
             <motion.div
               key={payment.id}
-              variants={itemVariants}
+              variants={recurringItemVariants}
               initial="hidden"
               animate="visible"
               exit="exit"

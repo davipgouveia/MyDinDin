@@ -4,44 +4,37 @@ import { X, Plus } from 'lucide-react'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, FREQUENCY_OPTIONS } from '../constants/categories'
 import { HelpHint } from './HelpHint'
 
+const getTodayDate = () => new Date().toISOString().split('T')[0]
+
+const buildInitialFormData = (transactionType = 'expense') => ({
+  description: '',
+  amount: '',
+  category: transactionType === 'expense' ? 'alimentacao' : 'salario',
+  date: getTodayDate(),
+  dueDate: '',
+  paymentMethod: 'credito',
+  isPaid: true,
+  isRecurring: false,
+  frequency: 'mensal',
+  endDate: '',
+  notes: '',
+})
+
 export function AdvancedTransactionModal({
   isOpen = false,
   onClose = () => {},
   onSubmit = () => {},
   transactionType = 'expense',
 }) {
-  const [formData, setFormData] = useState({
-    description: '',
-    amount: '',
-    category: 'alimentacao',
-    date: new Date().toISOString().split('T')[0],
-    dueDate: '',
-    paymentMethod: 'credito',
-    isPaid: true,
-    isRecurring: false,
-    frequency: 'mensal',
-    endDate: '',
-    notes: '',
-  })
+  const [formData, setFormData] = useState(() => buildInitialFormData(transactionType))
 
   const categories = transactionType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  const isIncome = transactionType === 'income'
 
   useEffect(() => {
     if (!isOpen) return
 
-    setFormData({
-      description: '',
-      amount: '',
-      category: transactionType === 'expense' ? 'alimentacao' : 'salario',
-      date: new Date().toISOString().split('T')[0],
-      dueDate: '',
-      paymentMethod: 'credito',
-      isPaid: true,
-      isRecurring: false,
-      frequency: 'mensal',
-      endDate: '',
-      notes: '',
-    })
+    setFormData(buildInitialFormData(transactionType))
   }, [isOpen, transactionType])
 
   const backdropVariants = {
@@ -74,19 +67,7 @@ export function AdvancedTransactionModal({
 
     try {
       await Promise.resolve(onSubmit(formData))
-      setFormData({
-        description: '',
-        amount: '',
-        category: transactionType === 'expense' ? 'alimentacao' : 'salario',
-        date: new Date().toISOString().split('T')[0],
-        dueDate: '',
-        paymentMethod: 'credito',
-        isPaid: true,
-        isRecurring: false,
-        frequency: 'mensal',
-        endDate: '',
-        notes: '',
-      })
+      setFormData(buildInitialFormData(transactionType))
       onClose()
     } catch {
       // O erro ja e tratado no contexto/toast; evita promise rejeitada sem tratamento.
@@ -202,8 +183,8 @@ export function AdvancedTransactionModal({
 
               <div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-300">Vencimento (opcional)</label>
-                  <HelpHint text="Use para contas a pagar; ajuda nos lembretes de prazo." />
+                  <label className="text-xs font-medium text-slate-300">{isIncome ? 'Previsão de recebimento (opcional)' : 'Vencimento (opcional)'}</label>
+                  <HelpHint text={isIncome ? 'Use para receitas futuras, como salários ou repasses com data prevista.' : 'Use para contas a pagar; ajuda nos lembretes de prazo.'} />
                 </div>
                 <input
                   type="date"
@@ -215,8 +196,8 @@ export function AdvancedTransactionModal({
 
               <div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-300">Pagamento</label>
-                  <HelpHint text="Escolha como o lançamento foi pago para manter o histórico mais completo." />
+                  <label className="text-xs font-medium text-slate-300">{isIncome ? 'Recebimento' : 'Pagamento'}</label>
+                  <HelpHint text={isIncome ? 'Escolha como esse valor foi recebido para manter o histórico completo.' : 'Escolha como o lançamento foi pago para manter o histórico mais completo.'} />
                 </div>
                 <select
                   value={formData.paymentMethod}
@@ -241,7 +222,7 @@ export function AdvancedTransactionModal({
                 className="h-4 w-4 cursor-pointer rounded border-slate-600"
               />
               <label htmlFor="alreadyPaid" className="cursor-pointer text-xs font-medium text-slate-300">
-                Já foi pago
+                {isIncome ? 'Já foi recebido' : 'Já foi pago'}
               </label>
             </div>
 

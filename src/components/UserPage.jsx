@@ -7,6 +7,7 @@ import { exportTransactionsCsv, printMonthlyPdfReport } from '../utils/reports'
 import { isWebhookConfigured, sendWebhookAlert } from '../lib/webhookAlerts'
 import { toast } from '../hooks/useToast'
 import { usePreferences } from '../context/PreferencesContext'
+import { HelpHint } from './HelpHint'
 
 export function UserPage({
   profile,
@@ -104,14 +105,14 @@ export function UserPage({
         animate={{ opacity: 1, y: 0 }}
         className={`rounded-[1.75rem] border ${isCompact ? 'p-4' : 'p-5'} shadow-xl ${surfaceClass}`}
       >
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col items-start gap-4 sm:flex-row">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-xl font-bold text-cyan-300">
             {initials || 'F'}
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-semibold text-white">{profileName}</h2>
+              <h2 className={`text-xl font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>{profileName}</h2>
               <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
                 {t('profile')}
               </span>
@@ -166,7 +167,10 @@ export function UserPage({
           </div>
           <div className="mt-3 grid gap-3">
             <div>
-              <label className={`mb-1 block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('language')}</label>
+              <div className="mb-1 flex items-center gap-2">
+                <label className={`block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('language')}</label>
+                <HelpHint text="Escolha o idioma principal da interface e dos textos do assistente." />
+              </div>
               <select
                 value={language}
                 onChange={(event) => setLanguage(event.target.value)}
@@ -186,7 +190,10 @@ export function UserPage({
             </button>
 
             <div>
-              <label className={`mb-1 block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('accentColor')}</label>
+              <div className="mb-1 flex items-center gap-2">
+                <label className={`block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('accentColor')}</label>
+                <HelpHint text="Define a cor de destaque aplicada nos botões, chips e pontos de atenção." />
+              </div>
               <select
                 value={accent}
                 onChange={(event) => setAccent(event.target.value)}
@@ -199,7 +206,10 @@ export function UserPage({
             </div>
 
             <div>
-              <label className={`mb-1 block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('density')}</label>
+              <div className="mb-1 flex items-center gap-2">
+                <label className={`block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('density')}</label>
+                <HelpHint text="Compacto mostra mais informação por tela. Espaçoso prioriza leitura e conforto visual." />
+              </div>
               <select
                 value={density}
                 onChange={(event) => setDensity(event.target.value)}
@@ -211,7 +221,10 @@ export function UserPage({
             </div>
 
             <div>
-              <label className={`mb-1 block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('layout')}</label>
+              <div className="mb-1 flex items-center gap-2">
+                <label className={`block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('layout')}</label>
+                <HelpHint text="Foco reduz largura para concentração. Expandido abre espaço para mais comparação em tela grande." />
+              </div>
               <select
                 value={layoutMode}
                 onChange={(event) => setLayoutMode(event.target.value)}
@@ -224,7 +237,10 @@ export function UserPage({
             </div>
 
             <div>
-              <label className={`mb-1 block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('user')}</label>
+              <div className="mb-1 flex items-center gap-2">
+                <label className={`block text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>{t('user')}</label>
+                <HelpHint text="Filtre o painel para ver transações de uma pessoa específica ou o total do grupo." />
+              </div>
               <select
                 value={ownerFilter}
                 onChange={(event) => onOwnerFilterChange(event.target.value)}
@@ -245,6 +261,10 @@ export function UserPage({
         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{t('sharedBudgets')}</h3>
 
         <form className="mt-3 grid gap-2 sm:grid-cols-[1fr_140px_auto]" onSubmit={handleCreateBudget}>
+          <div className="flex items-center gap-2 sm:col-span-3">
+            <span className={`text-[11px] uppercase tracking-[0.16em] ${textMutedClass}`}>Ajuda</span>
+            <HelpHint text="Crie limites por categoria para controlar melhor os gastos do grupo ao longo do mês." />
+          </div>
           <select
             value={budgetCategory}
             onChange={(event) => setBudgetCategory(event.target.value)}

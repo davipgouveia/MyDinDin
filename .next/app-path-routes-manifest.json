@@ -1,9 +1,0 @@
-{
-  "/api/auth/check-email/route": "/api/auth/check-email",
-  "/api/auth/signup/route": "/api/auth/signup",
-  "/_not-found/page": "/_not-found",
-  "/api/resend/send/route": "/api/resend/send",
-  "/icon.svg/route": "/icon.svg",
-  "/auth/callback/page": "/auth/callback",
-  "/page": "/"
-}

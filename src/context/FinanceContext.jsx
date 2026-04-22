@@ -350,8 +350,8 @@ export function FinanceProvider({ children }) {
       try {
         await withTimeout(
           refreshWorkspace(nextSession.user),
-          10000,
-          'Tempo limite ao atualizar dados da sessao.',
+          20000,
+          'Tempo limite ao atualizar dados da sessão. Verifique sua conexão e tente novamente.',
         )
       } catch (refreshError) {
         setError(refreshError.message)

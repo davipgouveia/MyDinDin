@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Home, ChartColumnBig, UserRound, Plus, PanelsTopLeft, Bell, Sparkles, Tags, X } from 'lucide-react'
 import { usePreferences } from '../context/PreferencesContext'
@@ -7,40 +7,26 @@ export function MobileBottomNav({ activePage, onNavigate, onQuickAdd }) {
   const { t } = usePreferences()
   const [moreOpen, setMoreOpen] = useState(false)
 
-  const groupedPages = useMemo(() => ['categories', 'reminders', 'ai'], [])
+  const groupedPages = ['categories', 'reminders', 'ai']
 
-  const navItems = useMemo(
-    () => [
-      { id: 'dashboard', label: t('dashboard'), icon: Home },
-      { id: 'stats', label: t('stats'), icon: ChartColumnBig },
-      { id: 'add', label: t('add'), icon: Plus, primary: true },
-      { id: 'more', label: 'Mais', icon: PanelsTopLeft },
-      { id: 'user', label: t('user'), icon: UserRound },
-    ],
-    [t],
-  )
+  const navItems = [
+    { id: 'dashboard', label: t('dashboard'), icon: Home },
+    { id: 'stats', label: t('stats'), icon: ChartColumnBig },
+    { id: 'add', label: t('add'), icon: Plus, primary: true },
+    { id: 'more', label: 'Mais', icon: PanelsTopLeft },
+    { id: 'user', label: t('user'), icon: UserRound },
+  ]
 
-  const moreItems = useMemo(
-    () => [
-      { id: 'categories', label: t('categories'), icon: Tags },
-      { id: 'reminders', label: t('reminders'), icon: Bell },
-      { id: 'ai', label: t('ai'), icon: Sparkles },
-    ],
-    [t],
-  )
+  const moreItems = [
+    { id: 'categories', label: t('categories'), icon: Tags },
+    { id: 'reminders', label: t('reminders'), icon: Bell },
+    { id: 'ai', label: t('ai'), icon: Sparkles },
+  ]
 
-  const handleNavigate = useCallback((page) => {
+  const handleNavigate = (page) => {
     onNavigate(page)
     setMoreOpen(false)
-  }, [onNavigate])
-
-  const handleToggleMore = useCallback(() => {
-    setMoreOpen((current) => !current)
-  }, [])
-
-  const closeMore = useCallback(() => {
-    setMoreOpen(false)
-  }, [])
+  }
 
   return (
     <>
@@ -76,7 +62,7 @@ export function MobileBottomNav({ activePage, onNavigate, onQuickAdd }) {
               type="button"
               onClick={() => {
                 if (item.id === 'more') {
-                  handleToggleMore()
+                  setMoreOpen((current) => !current)
                   return
                 }
                 handleNavigate(item.id)
@@ -108,7 +94,7 @@ export function MobileBottomNav({ activePage, onNavigate, onQuickAdd }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-end bg-slate-950/60 p-3 md:hidden"
-            onClick={closeMore}
+            onClick={() => setMoreOpen(false)}
           >
             <motion.div
               initial={{ y: 22, opacity: 0 }}
@@ -121,7 +107,7 @@ export function MobileBottomNav({ activePage, onNavigate, onQuickAdd }) {
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Acessos rápidos</p>
                 <button
                   type="button"
-                  onClick={closeMore}
+                  onClick={() => setMoreOpen(false)}
                   className="rounded-full border border-slate-700 bg-slate-900 p-1.5 text-slate-400"
                   aria-label="Fechar menu"
                 >

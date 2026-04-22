@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Lightbulb, TrendingUp, AlertTriangle, CheckCircle, Info } from 'lucide-react'
+import { X, Lightbulb, TrendingUp, AlertTriangle, CheckCircle, Info, Trash2 } from 'lucide-react'
+import { useFinancialBudget } from '../hooks/useFinancialAI'
 import { formatCurrency } from '../utils/format'
 
 export function AIRecommendationsPanel({ recommendations = [], insights = {}, onDismiss = () => {} }) {
@@ -150,6 +151,7 @@ export function AIRecommendationsPanel({ recommendations = [], insights = {}, on
 }
 
 export function BudgetAlertPanel({ budgets = [] }) {
+  const { removeBudget } = useFinancialBudget()
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -206,11 +208,19 @@ export function BudgetAlertPanel({ budgets = [] }) {
           variants={itemVariants}
           className={`rounded-lg border p-3 ${getStatusColor(budget.status)}`}
         >
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between text-xs gap-2">
             <span className="font-medium text-slate-200">{budget.category}</span>
             <span className="text-slate-400">
               R$ {budget.spent.toFixed(2)} / R$ {budget.limit.toFixed(2)}
             </span>
+            <button
+              type="button"
+              title="Excluir orçamento"
+              className="ml-2 rounded-full p-1 text-red-400 hover:bg-red-900/20 hover:text-red-300 transition"
+              onClick={() => removeBudget(budget.id)}
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
 
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-700/50">

@@ -1,10 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useChat } from '../context/ChatContext'
+import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bot, Send, Sparkles, User2, MessageCircleQuestion, Trash2 } from 'lucide-react'
 import { buildFinanceChatReply } from '../lib/financeChatBrain'
+import { fetchGeminiChatReply } from '../lib/geminiApi'
 import { usePreferences } from '../context/PreferencesContext'
+import { useFinancialBudget } from '../hooks/useFinancialAI'
+import { askGemini } from '../lib/geminiAgent'
 
 const STORAGE_KEY = 'mydindin_ai_chat_history'
 
@@ -19,33 +24,35 @@ const createWelcomeMessage = (t) => ({
 
 export function FinanceChatPanel({ insights = {}, recommendations = [], budgets = [], transactions = [] }) {
   const { theme, accent, t } = usePreferences()
-  const [messages, setMessages] = useState(() => [createWelcomeMessage(t)])
+  const { messages, setMessages } = useChat()
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const bottomRef = useRef(null)
   const isLight = theme === 'light'
+  const { addBudget } = useFinancialBudget()
+  const { addCustomCategory } = require('../context/TransactionCategoryContext').useTransactionCategory()
 
+  // Remove persistência localStorage, pois agora está no contexto global
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (!stored) return
-
-    try {
-      const parsed = JSON.parse(stored)
-      if (Array.isArray(parsed) && parsed.length) {
-        setMessages(parsed)
-      }
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY)
+    if (!messages.length) {
+      setMessages([createWelcomeMessage(t)])
     }
+    // eslint-disable-next-line
   }, [])
 
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-24)))
-  }, [messages])
 
+
+  // Auto-scroll apenas no container de mensagens do chat
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isTyping])
+    // Busca o container de overflow do chat
+    const chatContainer = bottomRef.current?.closest('.overflow-y-auto')
+    if (chatContainer && bottomRef.current) {
+      // Usa setTimeout para garantir que o DOM já atualizou
+      setTimeout(() => {
+        chatContainer.scrollTop = chatContainer.scrollHeight
+      }, 0)
+    }
+  }, [messages])
 
   const accentClass = useMemo(() => {
     if (accent === 'emerald') return 'border-emerald-500/25 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15'
@@ -68,9 +75,48 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
     return prompts.filter(Boolean)
   }, [t])
 
+  // Função utilitária simples para Markdown básico (negrito, itálico, links)
+  function renderMarkdown(text) {
+    if (!text) return null
+    let html = text
+    // Negrito **texto**
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Itálico *texto*
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Links [texto](url)
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline text-cyan-400 hover:text-cyan-300">$1</a>')
+    // Quebra de linha
+    html = html.replace(/\n/g, '<br />')
+    return <span dangerouslySetInnerHTML={{ __html: html }} />
+  }
+
   const sendMessage = async (text) => {
     const normalized = text.trim()
     if (!normalized || isTyping) return
+
+    // Verifica se a última mensagem era de permissão de categoria
+    const lastMsg = messages[messages.length - 1]
+    if (
+      lastMsg &&
+      lastMsg.meta?.intent === 'category_permission' &&
+      ['sim', 'Sim', 'SIM', 's', 'S'].includes(normalized)
+    ) {
+      // Executa a criação da categoria
+      const { name, type } = lastMsg.meta.pendingCategory
+      addCustomCategory({ name }, type)
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          text: `Categoria "${name}" do tipo ${type === 'income' ? 'receita' : 'despesa'} criada com sucesso! 🏷️`,
+          meta: { intent: 'category_created', category: { name, type } }
+        },
+      ])
+      setInput('')
+      setIsTyping(false)
+      return
+    }
 
     const userMessage = {
       id: `user-${Date.now()}`,
@@ -82,30 +128,83 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
     setInput('')
     setIsTyping(true)
 
-    window.setTimeout(() => {
-      const reply = buildFinanceChatReply({
-        message: normalized,
-        insights,
-        recommendations,
-        budgets,
-        transactions,
-      })
+    // ==========================================
+    // INJEÇÃO DE CONTEXTO DINÂMICO (System Prompt)
+    // ==========================================
+    const topCategory = insights.categoryExpenses 
+      ? Object.entries(insights.categoryExpenses).sort((a, b) => b[1] - a[1])[0] 
+      : null;
 
+    const systemPrompt = `
+      Você é o DinDinMind, um assistente financeiro inteligente e direto ao ponto.
+      Use emojis.
+
+      DADOS ATUAIS DO USUÁRIO NESTE MÊS:
+      - Saldo: R$ ${insights.balance || 0}
+      - Despesas totais: R$ ${insights.totalExpenses || 0}
+      - Receitas totais: R$ ${insights.totalIncome || 0}
+      ${topCategory ? `- Categoria com maior gasto: ${topCategory[0]} (R$ ${topCategory[1]})` : ''}
+      - Taxa de poupança: ${insights.savingsRate ? insights.savingsRate.toFixed(1) : 0}%
+
+      REGRAS IMPORTANTES:
+      - Se o usuário pedir para criar, adicionar ou definir um orçamento, use a ferramenta 'add_budget'.
+      - Se o usuário pedir para criar uma categoria, use a ferramenta 'add_category', mas sempre peça permissão antes de executar.
+      - Se o usuário pedir para alterar configurações do site, sempre peça permissão antes de executar.
+      - Nunca execute ações sensíveis sem confirmação do usuário.
+    `;
+
+    try {
+      // Chama o Gemini passando a mensagem e o contexto atualizado
+      const response = await askGemini(normalized, systemPrompt);
+
+      if (response.isFunction && response.functionCall.name === 'add_budget') {
+        const { category, limit } = response.functionCall.args;
+        await addBudget(category, limit, 'mensal');
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            text: `Prontinho! Acabei de criar e salvar um orçamento de R$ ${limit} para a categoria "${category}". 🎯`,
+            meta: { intent: 'budget_created' }
+          },
+        ])
+      } else if (response.isFunction && response.functionCall.name === 'add_category') {
+        const { name, type } = response.functionCall.args;
+        // IA pede permissão ao usuário antes de criar
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            text: `Posso criar a categoria "${name}" do tipo ${type === 'income' ? 'receita' : 'despesa'} para você? Responda "sim" para confirmar ou "não" para cancelar.`,
+            meta: { intent: 'category_permission', pendingCategory: { name, type } }
+          },
+        ])
+      } else {
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            text: response.text,
+            meta: { intent: 'chat' }
+          },
+        ])
+      }
+    } catch (error) {
+      console.error("Erro na IA:", error);
       setMessages((current) => [
         ...current,
         {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-          text: reply.reply,
-          meta: {
-            intent: reply.intent,
-            confidence: reply.confidence,
-            followUps: reply.followUps,
-          },
+          text: "Ops, minha conexão falhou por um instante. Pode repetir?",
         },
       ])
+    } finally {
       setIsTyping(false)
-    }, 450)
+    }
   }
 
   const handleSubmit = (event) => {
@@ -196,7 +295,10 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
                   {message.role === 'user' ? <User2 size={12} /> : <Sparkles size={12} />}
                   <span>{message.role === 'user' ? t('chatYou') : t('chatAssistant')}</span>
                 </div>
-                <p className="mt-1 whitespace-pre-line">{message.text}</p>
+                {message.role === 'assistant'
+                  ? <p className="mt-1 whitespace-pre-line">{renderMarkdown(message.text)}</p>
+                  : <p className="mt-1 whitespace-pre-line">{message.text}</p>
+                }
                 {message.meta?.followUps?.length > 0 && message.role === 'assistant' && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {message.meta.followUps.slice(0, 3).map((followUp) => (

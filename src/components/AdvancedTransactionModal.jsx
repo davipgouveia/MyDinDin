@@ -2,23 +2,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { X, Plus } from 'lucide-react'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, FREQUENCY_OPTIONS } from '../constants/categories'
+import { useTransactionCategory } from '../context/TransactionCategoryContext'
 import { HelpHint } from './HelpHint'
-
-const getTodayDate = () => new Date().toISOString().split('T')[0]
-
-const buildInitialFormData = (transactionType = 'expense') => ({
-  description: '',
-  amount: '',
-  category: transactionType === 'expense' ? 'alimentacao' : 'salario',
-  date: getTodayDate(),
-  dueDate: '',
-  paymentMethod: 'credito',
-  isPaid: true,
-  isRecurring: false,
-  frequency: 'mensal',
-  endDate: '',
-  notes: '',
-})
 
 export function AdvancedTransactionModal({
   isOpen = false,
@@ -26,15 +11,40 @@ export function AdvancedTransactionModal({
   onSubmit = () => {},
   transactionType = 'expense',
 }) {
-  const [formData, setFormData] = useState(() => buildInitialFormData(transactionType))
+  const [formData, setFormData] = useState({
+    description: '',
+    amount: '',
+    category: 'alimentacao',
+    date: new Date().toISOString().split('T')[0],
+    dueDate: '',
+    paymentMethod: 'credito',
+    isPaid: true,
+    isRecurring: false,
+    frequency: 'mensal',
+    endDate: '',
+    notes: '',
+  })
 
-  const categories = transactionType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  const { getAllCategories } = useTransactionCategory()
+  const categories = getAllCategories(transactionType)
   const isIncome = transactionType === 'income'
 
   useEffect(() => {
     if (!isOpen) return
 
-    setFormData(buildInitialFormData(transactionType))
+    setFormData({
+      description: '',
+      amount: '',
+      category: transactionType === 'expense' ? 'alimentacao' : 'salario',
+      date: new Date().toISOString().split('T')[0],
+      dueDate: '',
+      paymentMethod: 'credito',
+      isPaid: true,
+      isRecurring: false,
+      frequency: 'mensal',
+      endDate: '',
+      notes: '',
+    })
   }, [isOpen, transactionType])
 
   const backdropVariants = {
@@ -67,7 +77,19 @@ export function AdvancedTransactionModal({
 
     try {
       await Promise.resolve(onSubmit(formData))
-      setFormData(buildInitialFormData(transactionType))
+      setFormData({
+        description: '',
+        amount: '',
+        category: transactionType === 'expense' ? 'alimentacao' : 'salario',
+        date: new Date().toISOString().split('T')[0],
+        dueDate: '',
+        paymentMethod: 'credito',
+        isPaid: true,
+        isRecurring: false,
+        frequency: 'mensal',
+        endDate: '',
+        notes: '',
+      })
       onClose()
     } catch {
       // O erro ja e tratado no contexto/toast; evita promise rejeitada sem tratamento.

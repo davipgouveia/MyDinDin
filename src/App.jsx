@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Plus, ServerCrash, Settings } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -13,6 +13,7 @@ import { PaymentRemindersSection, RecurringPaymentsSection } from './components/
 import { CategoriesManager } from './components/CategoriesManager'
 import { AIRecommendationsPanel, BudgetAlertPanel } from './components/AIRecommendations'
 import { FinanceChatPanel } from './components/FinanceChatPanel'
+import { ChatProvider } from './context/ChatContext'
 import { AdvancedTransactionModal } from './components/AdvancedTransactionModal'
 import { MobileBottomNav } from './components/MobileBottomNav'
 import { QuickAddSheet } from './components/QuickAddSheet'
@@ -56,10 +57,6 @@ function DashboardContent() {
     setError,
     profile,
     user,
-    group,
-    members,
-    groupInvites,
-    pendingGroupInvites,
     visibleTransactions,
     transactionComments,
     activityLogs,
@@ -72,10 +69,6 @@ function DashboardContent() {
     addTransaction,
     deleteTransaction,
     addTransactionComment,
-    updateGroupSettings,
-    inviteGroupMember,
-    revokeGroupInvite,
-    acceptGroupInvite,
   } = useFinance()
   const { theme, layoutMode, t, toggleTheme } = usePreferences()
   const isLight = theme === 'light'
@@ -464,20 +457,12 @@ function DashboardContent() {
         <UserPage
           profile={profile}
           user={user}
-          group={group}
-          members={members}
-          groupInvites={groupInvites}
-          pendingGroupInvites={pendingGroupInvites}
           summary={summary}
           transactions={visibleTransactions}
           activityLogs={activityLogs}
           budgets={budgets}
           onCreateBudget={addBudget}
           onDeleteBudget={removeBudget}
-          onUpdateGroupSettings={updateGroupSettings}
-          onInviteGroupMember={inviteGroupMember}
-          onRevokeGroupInvite={revokeGroupInvite}
-          onAcceptGroupInvite={acceptGroupInvite}
           onSignOut={handleSignOut}
           ownerFilter={ownerFilter}
           onOwnerFilterChange={setOwnerFilter}
@@ -529,7 +514,7 @@ export default function App() {
               <h1 className="text-lg font-semibold">Supabase não configurado</h1>
             </div>
             <p className="text-sm text-slate-300">
-              Crie um arquivo <strong>.env.local</strong> na raiz com as variáveis <strong>NEXT_PUBLIC_SUPABASE_URL</strong>
+              Crie um arquivo <strong>.env</strong> na raiz com as variáveis <strong>VITE_SUPABASE_URL</strong>
               {' '}e <strong>NEXT_PUBLIC_SUPABASE_ANON_KEY</strong>, depois reinicie o <strong>npm run dev</strong>.
             </p>
           </section>
@@ -542,7 +527,9 @@ export default function App() {
         <SetupView />
       ) : (
         <TransactionCategoryProvider>
-          <DashboardContent />
+          <ChatProvider>
+            <DashboardContent />
+          </ChatProvider>
         </TransactionCategoryProvider>
       )}
     </>
@@ -552,20 +539,8 @@ export default function App() {
 function SignInView() {
   const [mode, setMode] = useState('signin')
   const [authForm, setAuthForm] = useState({ email: '', password: '' })
-  const [signupEmailStatus, setSignupEmailStatus] = useState({ type: 'idle', message: '' })
-  const [resetCooldownSeconds, setResetCooldownSeconds] = useState(0)
-  const { submitting, error, setError, signIn, signUp, resetPassword, checkRegisteredEmail } = useFinance()
+  const { submitting, error, setError, signIn, signUp, resetPassword } = useFinance()
   const { t } = usePreferences()
-
-  useEffect(() => {
-    if (resetCooldownSeconds <= 0) return undefined
-
-    const timer = window.setInterval(() => {
-      setResetCooldownSeconds((current) => (current <= 1 ? 0 : current - 1))
-    }, 1000)
-
-    return () => window.clearInterval(timer)
-  }, [resetCooldownSeconds])
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault()
@@ -574,58 +549,11 @@ function SignInView() {
       if (mode === 'signin') {
         await signIn(authForm)
       } else {
-        const signUpResult = await signUp(authForm)
-        if (signUpResult?.requiresEmailVerification) {
-          toast.success('Conta criada. Enviamos um email via Resend para confirmacao antes do primeiro login.')
-          setMode('signin')
-        }
+        await signUp(authForm)
       }
       setAuthForm({ email: '', password: '' })
-      setSignupEmailStatus({ type: 'idle', message: '' })
     } catch (authError) {
       setError(authError.message)
-    }
-  }
-
-  const handleSignupEmailCheck = async () => {
-    if (mode !== 'signup') return
-
-    const normalizedEmail = String(authForm.email || '').trim().toLowerCase()
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
-      setSignupEmailStatus({ type: 'idle', message: '' })
-      return
-    }
-
-    setSignupEmailStatus({ type: 'checking', message: 'Verificando email...' })
-
-    try {
-      const result = await checkRegisteredEmail(normalizedEmail)
-
-      if (!result?.checked) {
-        setSignupEmailStatus({
-          type: 'error',
-          message: 'Nao foi possivel validar este email agora. Tente novamente em alguns instantes.',
-        })
-        return
-      }
-
-      if (result.exists) {
-        setSignupEmailStatus({
-          type: 'exists',
-          message: 'Este email ja possui cadastro. Use Entrar ou Esqueci minha senha.',
-        })
-        return
-      }
-
-      setSignupEmailStatus({
-        type: 'available',
-        message: 'Email disponivel para cadastro.',
-      })
-    } catch (_error) {
-      setSignupEmailStatus({
-        type: 'error',
-        message: 'Nao foi possivel verificar agora. Tente novamente em alguns instantes.',
-      })
     }
   }
 
@@ -635,23 +563,10 @@ function SignInView() {
       return
     }
 
-    if (resetCooldownSeconds > 0) {
-      setError(`Aguarde ${resetCooldownSeconds}s para solicitar um novo email.`)
-      return
-    }
-
     try {
       await resetPassword(authForm.email)
-      setResetCooldownSeconds(60)
       toast.success('Enviamos um link para redefinir sua senha.')
     } catch (resetError) {
-      const message = String(resetError?.message || '').toLowerCase()
-      const isRateLimit = message.includes('muitas tentativas') || message.includes('too many requests') || message.includes('rate limit')
-
-      if (isRateLimit) {
-        setResetCooldownSeconds(60)
-      }
-
       setError(resetError.message)
     }
   }
@@ -685,63 +600,15 @@ function SignInView() {
           </span>
         </div>
 
-        <div className="mb-4 inline-flex rounded-xl border border-slate-700 bg-slate-900/70 p-1 text-xs">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signin')
-              setError(null)
-              setSignupEmailStatus({ type: 'idle', message: '' })
-            }}
-            className={`rounded-lg px-3 py-1.5 transition ${mode === 'signin' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:text-cyan-200'}`}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signup')
-              setError(null)
-              setSignupEmailStatus({ type: 'idle', message: '' })
-            }}
-            className={`rounded-lg px-3 py-1.5 transition ${mode === 'signup' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-300 hover:text-emerald-200'}`}
-          >
-            Criar conta
-          </button>
-        </div>
-
         <form className="mt-5 space-y-3" onSubmit={handleAuthSubmit}>
           <input
             required
             type="email"
             placeholder="Email"
             value={authForm.email}
-            onChange={(event) => {
-              setAuthForm((prev) => ({ ...prev, email: event.target.value }))
-              if (mode === 'signup') {
-                setSignupEmailStatus({ type: 'idle', message: '' })
-              }
-            }}
-            onBlur={handleSignupEmailCheck}
+            onChange={(event) => setAuthForm((prev) => ({ ...prev, email: event.target.value }))}
             className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
           />
-
-          {mode === 'signup' && signupEmailStatus.type !== 'idle' && (
-            <p
-              className={`text-xs ${
-                signupEmailStatus.type === 'exists'
-                  ? 'text-rose-300'
-                  : signupEmailStatus.type === 'available'
-                    ? 'text-emerald-300'
-                    : signupEmailStatus.type === 'checking'
-                      ? 'text-cyan-300'
-                      : 'text-amber-300'
-              }`}
-            >
-              {signupEmailStatus.message}
-            </p>
-          )}
-
           <input
             required
             type="password"
@@ -753,14 +620,7 @@ function SignInView() {
 
           <button
             type="submit"
-            disabled={
-              submitting
-              || (mode === 'signup' && (
-                signupEmailStatus.type === 'exists'
-                || signupEmailStatus.type === 'checking'
-                || signupEmailStatus.type === 'error'
-              ))
-            }
+            disabled={submitting}
             className={`w-full rounded-lg py-2.5 text-sm font-semibold text-slate-950 transition disabled:cursor-not-allowed disabled:opacity-60 ${
               isSignUp ? 'bg-emerald-400 hover:bg-emerald-300' : 'bg-cyan-500 hover:bg-cyan-400'
             }`}
@@ -775,7 +635,6 @@ function SignInView() {
             onClick={() => {
               setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'))
               setError(null)
-              setSignupEmailStatus({ type: 'idle', message: '' })
             }}
             className="text-sm text-cyan-300 underline-offset-2 hover:underline"
           >
@@ -786,10 +645,9 @@ function SignInView() {
             <button
               type="button"
               onClick={handlePasswordReset}
-              disabled={submitting || resetCooldownSeconds > 0}
               className="text-sm text-slate-300 underline-offset-2 transition hover:text-cyan-300 hover:underline"
             >
-              {resetCooldownSeconds > 0 ? `${t('forgotPassword')} (${resetCooldownSeconds}s)` : t('forgotPassword')}
+              {t('forgotPassword')}
             </button>
           )}
         </div>
@@ -801,28 +659,16 @@ function SignInView() {
 }
 
 function SetupView() {
-  const [setupMode, setSetupMode] = useState('create')
-  const [setupForm, setSetupForm] = useState({ groupName: '', fullName: '', inviteId: '' })
-  const { submitting, error, setError, bootstrapFamilyGroup, pendingGroupInvites, acceptGroupInvite } = useFinance()
+  const [setupForm, setSetupForm] = useState({ groupName: '', fullName: '' })
+  const { submitting, error, setError, bootstrapFamilyGroup } = useFinance()
   const { t } = usePreferences()
 
   const handleSetupSubmit = async (event) => {
     event.preventDefault()
 
     try {
-      if (setupMode === 'create') {
-        await bootstrapFamilyGroup({
-          groupName: setupForm.groupName,
-          fullName: setupForm.fullName,
-        })
-      } else {
-        await acceptGroupInvite({
-          inviteId: setupForm.inviteId,
-          fullName: setupForm.fullName,
-        })
-      }
-
-      setSetupForm({ groupName: '', fullName: '', inviteId: '' })
+      await bootstrapFamilyGroup(setupForm)
+      setSetupForm({ groupName: '', fullName: '' })
     } catch (setupError) {
       setError(setupError.message)
     }
@@ -834,70 +680,21 @@ function SetupView() {
         <h1 className="text-2xl font-bold">{t('setupGroupTitle')}</h1>
         <p className="mt-1 text-sm text-slate-400">{t('setupGroupSubtitle')}</p>
 
-        <div className="mt-4 inline-flex rounded-xl border border-slate-700 bg-slate-900/70 p-1 text-xs">
-          <button
-            type="button"
-            onClick={() => {
-              setSetupMode('create')
-              setError(null)
-            }}
-            className={`rounded-lg px-3 py-1.5 transition ${setupMode === 'create' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:text-cyan-200'}`}
-          >
-            Criar novo grupo
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSetupMode('join')
-              setError(null)
-            }}
-            className={`rounded-lg px-3 py-1.5 transition ${setupMode === 'join' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-300 hover:text-emerald-200'}`}
-          >
-            Entrar em grupo
-          </button>
-        </div>
-
         <form className="mt-5 space-y-3" onSubmit={handleSetupSubmit}>
-          {setupMode === 'create' ? (
-            <div>
-              <div className="mb-1 flex items-center gap-2">
-                <label className="text-xs font-medium text-slate-300">{t('groupNameLabel')}</label>
-                <HelpHint text={t('groupNameHint')} />
-              </div>
-              <input
-                required
-                type="text"
-                placeholder={t('groupNameLabel')}
-                value={setupForm.groupName}
-                onChange={(event) => setSetupForm((prev) => ({ ...prev, groupName: event.target.value }))}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-              />
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-300">{t('groupNameLabel')}</label>
+              <HelpHint text={t('groupNameHint')} />
             </div>
-          ) : (
-            <div>
-              <div className="mb-1 flex items-center gap-2">
-                <label className="text-xs font-medium text-slate-300">Selecionar convite de grupo</label>
-                <HelpHint text="Escolha um grupo pendente para este email e finalize sua entrada em segundos." />
-              </div>
-              <select
-                required
-                value={setupForm.inviteId}
-                onChange={(event) => setSetupForm((prev) => ({ ...prev, inviteId: event.target.value }))}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-              >
-                <option value="">Selecione um grupo pendente</option>
-                {pendingGroupInvites.map((invite) => (
-                  <option key={invite.invite_id} value={invite.invite_id}>
-                    {invite.group_name} {invite.expires_at ? `• expira em ${new Date(invite.expires_at).toLocaleDateString('pt-BR')}` : ''}
-                  </option>
-                ))}
-              </select>
-              {pendingGroupInvites.length === 0 && (
-                <p className="mt-2 text-xs text-amber-300">Nenhum convite pendente para seu email no momento.</p>
-              )}
-            </div>
-          )}
-
+            <input
+              required
+              type="text"
+              placeholder={t('groupNameLabel')}
+              value={setupForm.groupName}
+              onChange={(event) => setSetupForm((prev) => ({ ...prev, groupName: event.target.value }))}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+            />
+          </div>
           <div>
             <div className="mb-1 flex items-center gap-2">
               <label className="text-xs font-medium text-slate-300">{t('fullNameLabel')}</label>
@@ -915,10 +712,10 @@ function SetupView() {
 
           <button
             type="submit"
-            disabled={submitting || (setupMode === 'join' && pendingGroupInvites.length === 0)}
+            disabled={submitting}
             className="w-full rounded-lg bg-cyan-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? t('configuringGroup') : setupMode === 'create' ? t('createGroup') : 'Entrar no grupo selecionado'}
+            {submitting ? t('configuringGroup') : t('createGroup')}
           </button>
         </form>
 

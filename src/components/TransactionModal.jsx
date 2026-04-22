@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTransactionCategory } from '../context/TransactionCategoryContext'
 import { X } from 'lucide-react'
 import { HelpHint } from './HelpHint'
 
@@ -14,6 +15,8 @@ const defaultForm = {
 export default function TransactionModal({ open, onClose, onSave, submitting = false }) {
   const [form, setForm] = useState(defaultForm)
   const isIncome = form.type === 'income'
+  const { getAllCategories } = useTransactionCategory()
+  const categories = getAllCategories(form.type)
 
   if (!open) return null
 
@@ -100,13 +103,17 @@ export default function TransactionModal({ open, onClose, onSave, submitting = f
               <label className="text-xs font-medium text-slate-300">Categoria</label>
               <HelpHint text="Use a categoria para organizar relatórios e metas de orçamento." />
             </div>
-            <input
-              type="text"
-              placeholder="Categoria"
+            <select
               value={form.category}
               onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
               className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
-            />
+            >
+              {categories.map((cat) => (
+                <option key={cat.id || cat} value={cat.name || cat}>
+                  {cat.name || cat}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

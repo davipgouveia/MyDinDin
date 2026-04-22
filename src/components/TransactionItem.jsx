@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { ArrowDownCircle, ArrowUpCircle, MessageCircle, Send, Trash2 } from 'lucide-react'
-import { formatCurrency, formatDate } from '../utils/format'
+import { formatCurrency, formatDate } from '../../shared/format.js'
 
 export default function TransactionItem({
   transaction,

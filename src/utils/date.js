@@ -10,18 +10,20 @@ export const toDateKey = (value) => {
   return date ? date.toISOString().split('T')[0] : null
 }
 
-export const formatDateBR = (value, fallback = 'Data indisponível') => {
-  const date = parseDateValue(value)
-  if (!date) return fallback
-
-  return new Intl.DateTimeFormat('pt-BR').format(date)
+// Retorna o início do dia (00:00:00) para uma data
+export function startOfDay(date) {
+  const d = parseDateValue(date)
+  if (!d) return null
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
-export const startOfDay = (value) => {
-  const date = parseDateValue(value)
-  if (!date) return null
-
-  const normalized = new Date(date)
-  normalized.setHours(0, 0, 0, 0)
-  return normalized
+// Formata uma data para o padrão brasileiro (dd/mm/yyyy)
+export function formatDateBR(date, fallback = '') {
+  const d = parseDateValue(date)
+  if (!d) return fallback
+  return d.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
 }

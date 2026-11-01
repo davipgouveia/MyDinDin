@@ -1,10 +1,12 @@
 ## Integração com Gemini (Google AI)
 
-Para ativar o agente de IA Gemini no chat, adicione sua chave de API Gemini ao arquivo `.env.local`:
+Para ativar o agente de IA Gemini no chat, adicione a chave de API Gemini ao arquivo `.env.local` **do servidor**:
 
 ```
-NEXT_PUBLIC_GEMINI_API_KEY=sua-chave-gemini-aqui
+GEMINI_API_KEY=sua-chave-gemini-aqui
 ```
+
+A chave é lida apenas pela rota de servidor `/api/ai/chat` e **nunca** deve ser `NEXT_PUBLIC_` (variáveis `NEXT_PUBLIC_` são embutidas no JavaScript enviado ao navegador de todos os visitantes).
 
 Se não houver chave, o chat usará apenas a análise local baseada em regras.
 # 💰 FinançasAPP v2.0 - Aplicação de Gestão Financeira Enterprise

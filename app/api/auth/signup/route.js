@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { buildSignupVerificationEmail } from '../../../../src/lib/emailTemplates'
 import { getPublicAppUrlWithPath } from '../../../../src/lib/publicAppUrl'
+import { getClientIp } from '../../../../src/lib/serverAuth'
+import { rateLimit } from '../../../../src/lib/rateLimit'
 
 const EMAIL_ALREADY_REGISTERED_ERROR = 'Este email ja possui cadastro. Use Entrar ou Esqueci minha senha.'
 const EMAIL_PAGE_SIZE = 200
@@ -72,12 +74,20 @@ export async function POST(request) {
     const normalizedEmail = String(email || '').trim().toLowerCase()
     const normalizedPassword = String(password || '')
 
+    const limit = rateLimit(`signup:ip:${getClientIp(request)}`, 10, 60 * 60 * 1000)
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas de cadastro. Aguarde um pouco e tente novamente.' },
+        { status: 429 },
+      )
+    }
+
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
       return NextResponse.json({ error: 'Informe um email valido.' }, { status: 400 })
     }
 
-    if (normalizedPassword.length < 6) {
-      return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres.' }, { status: 400 })
+    if (normalizedPassword.length < 8) {
+      return NextResponse.json({ error: 'A senha deve ter pelo menos 8 caracteres.' }, { status: 400 })
     }
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL

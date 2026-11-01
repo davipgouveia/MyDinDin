@@ -1,3 +1,5 @@
+import { getAuthHeaders } from './authToken'
+
 export function isResendConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_RESEND_FROM_EMAIL)
 }
@@ -7,6 +9,7 @@ export async function sendAlertEmail({ to, subject, html }) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(await getAuthHeaders()),
     },
     body: JSON.stringify({
       to: Array.isArray(to) ? to : [to],

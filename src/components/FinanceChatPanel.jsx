@@ -6,7 +6,6 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bot, Send, Sparkles, User2, MessageCircleQuestion, Trash2 } from 'lucide-react'
 import { buildFinanceChatReply } from '../lib/financeChatBrain'
-import { fetchGeminiChatReply } from '../lib/geminiApi'
 import { usePreferences } from '../context/PreferencesContext'
 import { useFinancialBudget } from '../hooks/useFinancialAI'
 import { askGemini } from '../lib/geminiAgent'
@@ -75,16 +74,27 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
     return prompts.filter(Boolean)
   }, [t])
 
-  // Função utilitária simples para Markdown básico (negrito, itálico, links)
+  // Markdown básico (negrito, itálico, links) com escape de HTML ANTES
+  // das substituições — sem isso, qualquer HTML digitado na conversa
+  // era injetado na página (XSS).
   function renderMarkdown(text) {
     if (!text) return null
-    let html = text
+    let html = String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
     // Negrito **texto**
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     // Itálico *texto*
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Links [texto](url)
-    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline text-cyan-400 hover:text-cyan-300">$1</a>')
+    // Links [texto](url) — só http/https viram link; o resto vira texto puro
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, (match, label, url) => {
+      const href = String(url).trim()
+      if (!/^https?:\/\//i.test(href)) return label
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="underline text-cyan-400 hover:text-cyan-300">${label}</a>`
+    })
     // Quebra de linha
     html = html.replace(/\n/g, '<br />')
     return <span dangerouslySetInnerHTML={{ __html: html }} />
@@ -154,8 +164,19 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
     `;
 
     try {
-      // Chama o Gemini passando a mensagem e o contexto atualizado
-      const response = await askGemini(normalized, systemPrompt);
+      // Chama a IA pela rota de servidor; se estiver indisponível,
+      // responde com o cérebro local (regras) em vez de travar o chat.
+      let response
+      try {
+        response = await askGemini(normalized, systemPrompt);
+      } catch (aiError) {
+        console.warn('IA indisponível, usando análise local:', aiError)
+        const localReply = buildFinanceChatReply({ message: normalized, insights })
+        response = {
+          isFunction: false,
+          text: typeof localReply === 'string' ? localReply : (localReply?.text || 'Não consegui analisar agora. Pode repetir?'),
+        }
+      }
 
       if (response.isFunction && response.functionCall.name === 'add_budget') {
         const { category, limit } = response.functionCall.args;

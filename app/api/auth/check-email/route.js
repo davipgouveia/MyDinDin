@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { getClientIp } from '../../../../src/lib/serverAuth'
+import { rateLimit } from '../../../../src/lib/rateLimit'
 
 const EMAIL_PAGE_SIZE = 200
 const EMAIL_PAGE_LIMIT = 20
@@ -36,6 +38,14 @@ export async function POST(request) {
 
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
       return NextResponse.json({ error: 'Informe um email valido.' }, { status: 400 })
+    }
+
+    const limit = rateLimit(`check-email:ip:${getClientIp(request)}`, 20, 15 * 60 * 1000)
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: 'Muitas verificações em pouco tempo. Aguarde um instante e tente novamente.' },
+        { status: 429 },
+      )
     }
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL

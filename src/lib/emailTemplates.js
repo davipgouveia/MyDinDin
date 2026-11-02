@@ -1,76 +1,160 @@
 import { formatDateBR } from '../utils/date'
 
 const APP_NAME = 'MyDinDin'
+const APP_TAGLINE = 'Suas finanças em família, sem complicação'
 
-const logoMarkup = `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="88" height="88" style="display:block;margin:0 auto;">
-    <rect width="120" height="120" rx="24" fill="transparent"/>
-    <path d="M30 30Q60 15 60 15Q60 15 90 30V55Q90 85 60 95Q30 85 30 55Z" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <path d="M45 35Q60 28 75 35M40 45H80M45 55Q60 50 75 55M35 65H85" stroke="#ffffff" stroke-opacity="0.78" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-    <rect x="40" y="60" width="8" height="20" rx="1" fill="#ffffff" fill-opacity="0.9"/>
-    <rect x="52" y="50" width="8" height="30" rx="1" fill="#ffffff" fill-opacity="0.95"/>
-    <rect x="64" y="55" width="8" height="25" rx="1" fill="#ffffff" fill-opacity="0.9"/>
-    <path d="M76 62V48M73 52L76 48L79 52" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  </svg>
-`
+// Identidade visual alinhada ao app: fundo slate-950, cartão slate-900,
+// destaque ciano (#06b6d4). Layout 100% em tabelas + CSS inline, sem SVG
+// nem grid/flex — é o que Gmail, Outlook e Apple Mail renderizam igual.
 
-function renderFinanceEmailButton(href, label) {
-  return `
-    <div style="margin-top:28px;text-align:center;">
-      <a href="${href}" style="display:inline-block;padding:14px 22px;border-radius:14px;background:linear-gradient(135deg, #ffffff, #dbeafe);color:#0f172a;text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 12px 24px rgba(255,255,255,0.15);">
-        ${label}
-      </a>
-    </div>
-  `
+const COLORS = {
+  bg: '#020617',
+  card: '#0f172a',
+  cardBorder: '#1e293b',
+  inner: '#1e293b',
+  innerSoft: 'rgba(148, 163, 184, 0.08)',
+  text: '#e2e8f0',
+  muted: '#94a3b8',
+  faint: '#64748b',
+  white: '#ffffff',
+  accent: '#06b6d4',
+  accentDark: '#083344',
+  green: '#10b981',
+  red: '#ef4444',
+  sky: '#38bdf8',
 }
 
-export function buildEmailShell({ title, body, actionUrl, actionLabel, footerNote }) {
-  const buttonHtml = actionUrl && actionLabel ? renderFinanceEmailButton(actionUrl, actionLabel) : ''
+const FONT = "'Segoe UI', 'Helvetica Neue', Arial, Helvetica, sans-serif"
 
+function brandHeader() {
   return `
-  <div style="margin:0;padding:0;background:#0f172a;font-family:Arial,Helvetica,sans-serif;color:#e2e8f0;">
-    <div style="max-width:640px;margin:0 auto;padding:32px 20px;">
-      <div style="background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));border:1px solid rgba(255,255,255,0.1);border-radius:24px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.35);">
-        <div style="padding:28px 28px 18px 28px;text-align:center;background:radial-gradient(circle at top, rgba(255,255,255,0.16), rgba(255,255,255,0));">
-          <div style="width:88px;height:88px;margin:0 auto 18px auto;">${logoMarkup}</div>
-          <div style="font-size:13px;letter-spacing:0.24em;text-transform:uppercase;color:#cbd5e1;">${APP_NAME}</div>
-          <h1 style="margin:12px 0 0 0;font-size:28px;line-height:1.15;color:#ffffff;">${title}</h1>
-        </div>
-        <div style="padding:0 28px 28px 28px;">
-          <div style="font-size:16px;line-height:1.7;color:#cbd5e1;">${body}</div>
-          ${buttonHtml}
-          <div style="margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.08);font-size:12px;line-height:1.6;color:#94a3b8;">
-            ${footerNote || 'Se voce nao solicitou este alerta, ignore este email.'}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center" style="padding:8px 0 4px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="46" height="46" align="center" valign="middle" bgcolor="${COLORS.accent}" style="border-radius:13px;background-color:${COLORS.accent};background-image:linear-gradient(135deg, #22d3ee, ${COLORS.accent});font-family:${FONT};font-size:24px;font-weight:800;color:${COLORS.accentDark};line-height:46px;">M</td>
+            <td style="padding-left:12px;font-family:${FONT};font-size:24px;font-weight:800;color:${COLORS.white};letter-spacing:-0.02em;">My<span style="color:${COLORS.accent};">DinDin</span></td>
+          </tr>
+        </table>
+        <div style="margin-top:10px;font-family:${FONT};font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:${COLORS.faint};">${APP_TAGLINE}</div>
+      </td>
+    </tr>
+  </table>`
 }
+
+function renderEmailButton(href, label) {
+  return `
+  <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:30px auto 6px auto;">
+    <tr>
+      <td align="center" bgcolor="${COLORS.accent}" style="border-radius:14px;background-color:${COLORS.accent};background-image:linear-gradient(135deg, #22d3ee, ${COLORS.accent});box-shadow:0 10px 24px rgba(6, 182, 212, 0.35);">
+        <a href="${href}" target="_blank" style="display:inline-block;padding:15px 34px;font-family:${FONT};font-size:15px;font-weight:700;color:${COLORS.accentDark};text-decoration:none;border-radius:14px;">${label}</a>
+      </td>
+    </tr>
+  </table>
+  <div style="margin-top:14px;text-align:center;font-family:${FONT};font-size:12px;line-height:1.6;color:${COLORS.faint};">
+    Se o botão não funcionar, copie e cole este link no navegador:<br />
+    <a href="${href}" target="_blank" style="color:${COLORS.sky};text-decoration:underline;word-break:break-all;">${href}</a>
+  </div>`
+}
+
+function infoCard(label, value, valueSize = 16) {
+  return `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
+    <tr>
+      <td style="padding:14px 16px;border-radius:14px;background-color:${COLORS.innerSoft};border:1px solid ${COLORS.cardBorder};">
+        <div style="font-family:${FONT};font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:${COLORS.muted};">${label}</div>
+        <div style="margin-top:6px;font-family:${FONT};font-size:${valueSize}px;font-weight:700;color:${COLORS.white};">${value}</div>
+      </td>
+    </tr>
+  </table>`
+}
+
+function twoColCard(leftLabel, leftValue, rightLabel, rightValue) {
+  return `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
+    <tr>
+      <td style="padding:14px 16px;border-radius:14px;background-color:${COLORS.innerSoft};border:1px solid ${COLORS.cardBorder};">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td valign="top" style="font-family:${FONT};">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:${COLORS.muted};">${leftLabel}</div>
+              <div style="margin-top:6px;font-size:14px;font-weight:600;color:${COLORS.white};">${leftValue}</div>
+            </td>
+            <td valign="top" align="right" style="font-family:${FONT};">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:${COLORS.muted};">${rightLabel}</div>
+              <div style="margin-top:6px;font-size:14px;font-weight:600;color:${COLORS.white};">${rightValue}</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>`
+}
+
+const p = (text, extra = '') => `<p style="margin:0 0 16px 0;${extra}">${text}</p>`
+
+export function buildEmailShell({ title, preheader, body, actionUrl, actionLabel, footerNote }) {
+  const buttonHtml = actionUrl && actionLabel ? renderEmailButton(actionUrl, actionLabel) : ''
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>${title} — ${APP_NAME}</title>
+</head>
+<body style="margin:0;padding:0;background-color:${COLORS.bg};font-family:${FONT};">
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${preheader || title}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${COLORS.bg}" style="background-color:${COLORS.bg};">
+    <tr>
+      <td align="center" style="padding:36px 16px;">
+        <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;">
+          <tr>
+            <td bgcolor="${COLORS.card}" style="background-color:${COLORS.card};border:1px solid ${COLORS.cardBorder};border-radius:24px;padding:36px 36px 30px 36px;box-shadow:0 24px 48px rgba(0,0,0,0.45);">
+              ${brandHeader()}
+              <h1 style="margin:26px 0 0 0;text-align:center;font-family:${FONT};font-size:27px;line-height:1.25;font-weight:800;color:${COLORS.white};">${title}</h1>
+              <div style="margin-top:20px;font-family:${FONT};font-size:16px;line-height:1.7;color:${COLORS.text};">
+                ${body}
+              </div>
+              ${buttonHtml}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:30px;">
+                <tr>
+                  <td style="border-top:1px solid ${COLORS.cardBorder};padding-top:18px;font-family:${FONT};font-size:12px;line-height:1.7;color:${COLORS.muted};">
+                    ${footerNote || 'Se você não solicitou este e-mail, pode ignorá-lo com segurança.'}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:20px 8px 4px 8px;font-family:${FONT};font-size:12px;line-height:1.6;color:${COLORS.faint};">
+              ${APP_NAME} — controle financeiro compartilhado para famílias<br />
+              Este é um e-mail automático, não precisa responder.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+const fmtBRL = (value) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0)
 
 export function buildAlertEmail({ alertTitle, amount, dueDate, actionUrl }) {
-  const formattedAmount = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(Number(amount) || 0)
-
   const dateText = formatDateBR(dueDate, 'Sem vencimento definido')
 
   return buildEmailShell({
     title: alertTitle || 'Alerta financeiro',
+    preheader: `Alerta da sua conta: ${fmtBRL(amount)} — vencimento ${dateText}.`,
     body: `
-      <p style="margin:0 0 16px 0;">Segue um alerta automatizado da sua conta:</p>
-      <div style="display:grid;gap:12px;">
-        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
-          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Valor</div>
-          <div style="margin-top:6px;font-size:22px;font-weight:700;color:#ffffff;">${formattedAmount}</div>
-        </div>
-        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
-          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Vencimento</div>
-          <div style="margin-top:6px;font-size:16px;font-weight:600;color:#ffffff;">${dateText}</div>
-        </div>
-      </div>
+      ${p('Segue um alerta automatizado da sua conta:')}
+      ${infoCard('Valor', fmtBRL(amount), 22)}
+      ${infoCard('Vencimento', dateText)}
     `,
     actionUrl,
     actionLabel: 'Abrir MyDinDin',
@@ -82,175 +166,142 @@ export function buildPasswordResetEmail({ requestedAt, actionUrl, supportEmail }
   const requestedAtText = formatDateBR(requestedAt, formatDateBR(new Date().toISOString(), 'Agora'))
 
   return buildEmailShell({
-    title: 'Redefinicao de senha solicitada',
+    title: 'Redefinição de senha solicitada',
+    preheader: 'Recebemos um pedido para redefinir a senha da sua conta MyDinDin.',
     body: `
-      <p style="margin:0 0 16px 0;">Recebemos uma solicitacao para redefinir sua senha no ${APP_NAME}.</p>
-      <p style="margin:0 0 16px 0;">Se foi voce, use o botao abaixo para continuar com seguranca.</p>
-      <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
-        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Solicitacao registrada em</div>
-        <div style="margin-top:6px;font-size:16px;font-weight:600;color:#ffffff;">${requestedAtText}</div>
-      </div>
-      <p style="margin:16px 0 0 0;">Caso nao tenha sido voce, recomendamos trocar a senha do seu email principal e revisar dispositivos conectados.</p>
+      ${p(`Recebemos uma solicitação para redefinir sua senha no ${APP_NAME}.`)}
+      ${p('Se foi você, use o botão abaixo para continuar com segurança.')}
+      ${infoCard('Solicitação registrada em', requestedAtText)}
+      ${p('Caso não tenha sido você, recomendamos trocar a senha do seu e-mail principal e revisar os dispositivos conectados.', 'margin-top:16px;')}
     `,
     actionUrl,
     actionLabel: 'Redefinir senha',
     footerNote: supportEmail
       ? `Se precisar de ajuda, fale com ${supportEmail}.`
-      : 'Se voce nao solicitou essa redefinicao, ignore este email com seguranca.',
+      : 'Se você não solicitou essa redefinição, ignore este e-mail com segurança.',
   })
 }
 
 export function buildDueReminderEmail({ description, amount, dueDate, daysLeft, actionUrl }) {
-  const formattedAmount = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(Number(amount) || 0)
-
   const dueText = formatDateBR(dueDate, 'Sem vencimento definido')
   const urgencyLabel =
     typeof daysLeft === 'number'
       ? daysLeft <= 0
         ? 'Vence hoje'
         : `Vence em ${daysLeft} dia(s)`
-      : 'Vencimento proximo'
+      : 'Vencimento próximo'
 
   return buildEmailShell({
     title: 'Lembrete de vencimento',
+    preheader: `${description || 'Um lançamento'} de ${fmtBRL(amount)} — ${urgencyLabel.toLowerCase()}.`,
     body: `
-      <p style="margin:0 0 16px 0;">Temos um lembrete importante para sua organizacao financeira:</p>
-      <div style="display:grid;gap:12px;">
-        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
-          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Lancamento</div>
-          <div style="margin-top:6px;font-size:16px;font-weight:600;color:#ffffff;">${description || 'Despesa/receita'}</div>
-        </div>
-        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:12px;">
-          <div>
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Valor</div>
-            <div style="margin-top:6px;font-size:18px;font-weight:700;color:#ffffff;">${formattedAmount}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Vencimento</div>
-            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#ffffff;">${dueText}</div>
-            <div style="margin-top:4px;font-size:12px;color:#cbd5e1;">${urgencyLabel}</div>
-          </div>
-        </div>
-      </div>
+      ${p('Temos um lembrete importante para a sua organização financeira:')}
+      ${infoCard('Lançamento', description || 'Despesa/receita')}
+      ${twoColCard('Valor', fmtBRL(amount), 'Vencimento', `${dueText}<br /><span style="font-size:12px;font-weight:400;color:${COLORS.muted};">${urgencyLabel}</span>`)}
     `,
     actionUrl,
     actionLabel: 'Abrir e revisar agora',
-    footerNote: 'Manter vencimentos em dia reduz multas e melhora sua previsibilidade mensal.',
+    footerNote: 'Manter os vencimentos em dia reduz multas e melhora a sua previsibilidade mensal.',
   })
 }
 
 export function buildBudgetWarningEmail({ category, spent, limit, usagePercent, actionUrl }) {
-  const fmt = (value) =>
-    new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(Number(value) || 0)
-
   const resolvedUsage = Number.isFinite(Number(usagePercent))
     ? Number(usagePercent)
     : (Number(limit) > 0 ? (Number(spent) / Number(limit)) * 100 : 0)
+  const barWidth = Math.max(0, Math.min(100, resolvedUsage))
 
   return buildEmailShell({
-    title: 'Alerta de orcamento',
+    title: 'Alerta de orçamento',
+    preheader: `Seu orçamento de ${category || 'categoria'} atingiu ${resolvedUsage.toFixed(0)}% do limite.`,
     body: `
-      <p style="margin:0 0 16px 0;">Seu orcamento de <strong>${category || 'Categoria'}</strong> atingiu nivel de atencao.</p>
-      <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
-        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Consumo atual</div>
-        <div style="margin-top:6px;font-size:16px;font-weight:700;color:#ffffff;">${fmt(spent)} de ${fmt(limit)} (${resolvedUsage.toFixed(0)}%)</div>
-      </div>
-      <p style="margin:16px 0 0 0;">Se quiser, ajuste o limite ou priorize os gastos essenciais ate o fim do periodo.</p>
+      ${p(`Seu orçamento de <strong style="color:${COLORS.white};">${category || 'Categoria'}</strong> atingiu um nível de atenção.`)}
+      ${infoCard('Consumo atual', `${fmtBRL(spent)} de ${fmtBRL(limit)} (${resolvedUsage.toFixed(0)}%)`)}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+        <tr>
+          <td height="10" style="border-radius:999px;background-color:${COLORS.inner};font-size:0;line-height:0;">
+            <div style="width:${barWidth}%;height:10px;border-radius:999px;background-color:${resolvedUsage >= 100 ? COLORS.red : COLORS.accent};font-size:0;line-height:0;">&nbsp;</div>
+          </td>
+        </tr>
+      </table>
+      ${p('Se quiser, ajuste o limite ou priorize os gastos essenciais até o fim do período.', 'margin-top:16px;')}
     `,
     actionUrl,
-    actionLabel: 'Revisar orcamento',
-    footerNote: 'Acompanhar orcamentos semanalmente evita surpresas no fechamento do mes.',
+    actionLabel: 'Revisar orçamento',
+    footerNote: 'Acompanhar os orçamentos semanalmente evita surpresas no fechamento do mês.',
   })
 }
 
 export function buildMonthlySummaryEmail({ monthLabel, income, expense, balance, topCategory, actionUrl }) {
-  const fmt = (value) =>
-    new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(Number(value) || 0)
+  const statRow = (label, value, color) => `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
+    <tr>
+      <td style="padding:12px 16px;border-radius:14px;background-color:${COLORS.innerSoft};border:1px solid ${COLORS.cardBorder};border-left:4px solid ${color};font-family:${FONT};font-size:15px;color:${COLORS.text};">
+        ${label}: <strong style="color:${COLORS.white};">${fmtBRL(value)}</strong>
+      </td>
+    </tr>
+  </table>`
 
   return buildEmailShell({
-    title: `Resumo mensal${monthLabel ? ` - ${monthLabel}` : ''}`,
+    title: `Resumo mensal${monthLabel ? ` — ${monthLabel}` : ''}`,
+    preheader: `Seu resumo${monthLabel ? ` de ${monthLabel}` : ''}: receitas ${fmtBRL(income)}, despesas ${fmtBRL(expense)}, saldo ${fmtBRL(balance)}.`,
     body: `
-      <p style="margin:0 0 16px 0;">Fechamos seu resumo do periodo com os principais indicadores:</p>
-      <div style="display:grid;gap:10px;">
-        <div style="padding:12px 14px;border-radius:14px;background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.25);">Receitas: <strong style="color:#ffffff;">${fmt(income)}</strong></div>
-        <div style="padding:12px 14px;border-radius:14px;background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.25);">Despesas: <strong style="color:#ffffff;">${fmt(expense)}</strong></div>
-        <div style="padding:12px 14px;border-radius:14px;background:rgba(56,189,248,0.14);border:1px solid rgba(56,189,248,0.25);">Saldo: <strong style="color:#ffffff;">${fmt(balance)}</strong></div>
-      </div>
-      ${topCategory ? `<p style="margin:16px 0 0 0;">Categoria com maior impacto: <strong>${topCategory}</strong>.</p>` : ''}
+      ${p('Fechamos o seu resumo do período com os principais indicadores:')}
+      ${statRow('Receitas', income, COLORS.green)}
+      ${statRow('Despesas', expense, COLORS.red)}
+      ${statRow('Saldo', balance, COLORS.sky)}
+      ${topCategory ? p(`Categoria com maior impacto: <strong style="color:${COLORS.white};">${topCategory}</strong>.`, 'margin-top:16px;') : ''}
     `,
     actionUrl,
     actionLabel: 'Ver detalhes no painel',
-    footerNote: 'Use este resumo para ajustar metas, limites e planejamento do proximo mes.',
+    footerNote: 'Use este resumo para ajustar metas, limites e o planejamento do próximo mês.',
   })
 }
 
 export function buildSecurityNoticeEmail({ title, message, actionUrl }) {
   return buildEmailShell({
-    title: title || 'Aviso de seguranca',
+    title: title || 'Aviso de segurança',
+    preheader: 'Detectamos uma atividade sensível na sua conta MyDinDin.',
     body: `
-      <p style="margin:0 0 16px 0;">${message || 'Detectamos uma atividade sensivel em sua conta.'}</p>
-      <p style="margin:0;">Se voce reconhece a acao, nao e necessario fazer nada. Caso contrario, revise o acesso da sua conta imediatamente.</p>
+      ${p(message || 'Detectamos uma atividade sensível na sua conta.')}
+      ${p('Se você reconhece a ação, não é necessário fazer nada. Caso contrário, revise o acesso da sua conta imediatamente.')}
     `,
     actionUrl,
-    actionLabel: 'Revisar seguranca da conta',
-    footerNote: 'Dica: mantenha sua senha unica e atualizada periodicamente.',
+    actionLabel: 'Revisar segurança da conta',
+    footerNote: 'Dica: mantenha sua senha única e atualize-a periodicamente.',
   })
 }
 
 export function buildSignupVerificationEmail({ actionUrl }) {
   return buildEmailShell({
-    title: 'Confirme seu email para entrar',
+    title: 'Confirme seu e-mail para entrar',
+    preheader: 'Sua conta no MyDinDin foi criada — falta só confirmar o e-mail.',
     body: `
-      <p style="margin:0 0 16px 0;">Sua conta no ${APP_NAME} foi criada com sucesso.</p>
-      <p style="margin:0 0 16px 0;">Para liberar o acesso, confirme seu email clicando no botao abaixo.</p>
-      <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
-        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Etapa obrigatoria</div>
-        <div style="margin-top:6px;font-size:16px;font-weight:600;color:#ffffff;">Verificacao de email antes do primeiro login</div>
-      </div>
-      <p style="margin:16px 0 0 0;">Se nao foi voce, ignore este email com seguranca.</p>
+      ${p(`Sua conta no ${APP_NAME} foi criada com sucesso. 🎉`)}
+      ${p('Para liberar o acesso, confirme seu e-mail clicando no botão abaixo.')}
+      ${infoCard('Etapa obrigatória', 'Verificação de e-mail antes do primeiro login')}
+      ${p('Se não foi você, ignore este e-mail com segurança.', 'margin-top:16px;')}
     `,
     actionUrl,
-    actionLabel: 'Confirmar email',
-    footerNote: 'Depois da confirmacao, volte ao app e faca login normalmente.',
+    actionLabel: 'Confirmar e-mail',
+    footerNote: 'Depois da confirmação, volte ao app e faça login normalmente.',
   })
 }
 
 export function buildGroupInviteEmail({ groupName, inviterName, expiresAt, actionUrl }) {
-  const expiresText = formatDateBR(expiresAt, 'Sem expiracao definida')
+  const expiresText = formatDateBR(expiresAt, 'Sem expiração definida')
 
   return buildEmailShell({
-    title: 'Convite para grupo no MyDinDin',
+    title: 'Você foi convidado para um grupo',
+    preheader: `${inviterName || 'Um administrador'} convidou você para o grupo ${groupName || 'no MyDinDin'}.`,
     body: `
-      <p style="margin:0 0 16px 0;">Voce recebeu um convite para participar de um grupo financeiro no ${APP_NAME}.</p>
-      <div style="display:grid;gap:12px;">
-        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);">
-          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Grupo</div>
-          <div style="margin-top:6px;font-size:16px;font-weight:700;color:#ffffff;">${groupName || 'Grupo sem nome'}</div>
-        </div>
-        <div style="padding:14px 16px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:12px;">
-          <div>
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Convidado por</div>
-            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#ffffff;">${inviterName || 'Administrador do grupo'}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.16em;color:#94a3b8;">Expira em</div>
-            <div style="margin-top:6px;font-size:14px;font-weight:600;color:#ffffff;">${expiresText}</div>
-          </div>
-        </div>
-      </div>
-      <p style="margin:16px 0 0 0;">Ao abrir o app e entrar com este email, selecione a opcao <strong>Entrar em grupo</strong> para aceitar o convite.</p>
+      ${p(`Você recebeu um convite para participar de um grupo financeiro no ${APP_NAME}, onde as contas da família ficam organizadas num só lugar.`)}
+      ${infoCard('Grupo', groupName || 'Grupo sem nome', 18)}
+      ${twoColCard('Convidado por', inviterName || 'Administrador do grupo', 'Expira em', expiresText)}
+      ${p('Ao abrir o app e entrar com este e-mail, o convite aparece na sua conta — é só aceitar para entrar no grupo e ver as finanças compartilhadas.', 'margin-top:16px;')}
     `,
     actionUrl,
     actionLabel: 'Abrir MyDinDin',
-    footerNote: 'Se voce nao esperava este convite, basta ignorar este email.',
+    footerNote: 'Se você não esperava este convite, basta ignorar este e-mail.',
   })
 }

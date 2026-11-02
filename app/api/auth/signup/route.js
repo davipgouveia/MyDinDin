@@ -28,7 +28,7 @@ const sendVerificationEmail = async ({ to, actionUrl }) => {
     body: JSON.stringify({
       from,
       to: [to],
-      subject: 'Confirme seu email no MyDinDin',
+      subject: 'Confirme seu e-mail no MyDinDin',
       html,
     }),
   })

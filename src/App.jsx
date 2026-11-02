@@ -57,6 +57,14 @@ function DashboardContent() {
     setError,
     profile,
     user,
+    group,
+    members,
+    groupInvites,
+    pendingGroupInvites,
+    updateGroupSettings,
+    inviteGroupMember,
+    revokeGroupInvite,
+    acceptGroupInvite,
     visibleTransactions,
     transactionComments,
     activityLogs,
@@ -457,6 +465,14 @@ function DashboardContent() {
         <UserPage
           profile={profile}
           user={user}
+          group={group}
+          members={members}
+          groupInvites={groupInvites}
+          pendingGroupInvites={pendingGroupInvites}
+          onUpdateGroupSettings={updateGroupSettings}
+          onInviteGroupMember={inviteGroupMember}
+          onRevokeGroupInvite={revokeGroupInvite}
+          onAcceptGroupInvite={acceptGroupInvite}
           summary={summary}
           transactions={visibleTransactions}
           activityLogs={activityLogs}

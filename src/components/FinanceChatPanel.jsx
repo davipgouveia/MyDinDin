@@ -5,7 +5,7 @@ import { useChat } from '../context/ChatContext'
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bot, Send, Sparkles, User2, MessageCircleQuestion, Trash2 } from 'lucide-react'
-import { buildFinanceChatReply } from '../lib/financeChatBrain'
+import { buildFinanceChatReply, buildImprovementSuggestions } from '../lib/financeChatBrain'
 import { usePreferences } from '../context/PreferencesContext'
 import { useFinancialBudget } from '../hooks/useFinancialAI'
 import { askGemini } from '../lib/geminiAgent'
@@ -67,6 +67,7 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
     const prompts = [
       t('chatPromptSummary'),
       t('chatPromptSpending'),
+      t('chatPromptImprove'),
       t('chatPromptBudget'),
       t('chatPromptForecast'),
       t('chatPromptSeasonality'),
@@ -141,20 +142,31 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
     // ==========================================
     // INJEÇÃO DE CONTEXTO DINÂMICO (System Prompt)
     // ==========================================
-    const topCategory = insights.categoryExpenses 
-      ? Object.entries(insights.categoryExpenses).sort((a, b) => b[1] - a[1])[0] 
-      : null;
+    const topCategories = insights.categoryExpenses
+      ? Object.entries(insights.categoryExpenses).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      : [];
+    const budgetLines = (budgets || []).map((budget) =>
+      `- Orçamento ${budget.category}: limite R$ ${budget.limit || 0}, gasto R$ ${budget.spent || 0} (${budget.status})`)
+    const suggestionLines = buildImprovementSuggestions({ insights, budgets, transactions })
+    const recommendationLines = (recommendations || []).slice(0, 3).map((item) => `- ${item.title}: ${item.description}`)
 
     const systemPrompt = `
-      Você é o DinDinMind, um assistente financeiro inteligente e direto ao ponto.
-      Use emojis.
+      Você é o DinDinMind, um consultor financeiro pessoal que CONVERSA com o usuário e SUGERE MELHORIAS práticas para as finanças dele.
+      Fale em português brasileiro, de forma natural, acolhedora e direta. Use emojis com moderação.
+      Suas respostas devem se basear SOMENTE nos dados abaixo — nunca invente números.
+      Sempre que fizer sentido, termine a resposta com UMA sugestão prática e concreta de melhoria, com o impacto estimado em reais (ex.: "cortar 20% do delivery libera cerca de R$ 180/mês").
+      Responda em até 4 parágrafos curtos, sem juridiquês e sem prometer rentabilidade.
 
       DADOS ATUAIS DO USUÁRIO NESTE MÊS:
       - Saldo: R$ ${insights.balance || 0}
       - Despesas totais: R$ ${insights.totalExpenses || 0}
       - Receitas totais: R$ ${insights.totalIncome || 0}
-      ${topCategory ? `- Categoria com maior gasto: ${topCategory[0]} (R$ ${topCategory[1]})` : ''}
+      ${topCategories.map(([name, value]) => `- Gasto em ${name}: R$ ${value}`).join('\n      ')}
       - Taxa de poupança: ${insights.savingsRate ? insights.savingsRate.toFixed(1) : 0}%
+      ${insights.projectedMonthExpense ? `- Projeção de gastos no fechamento do mês: R$ ${Math.round(insights.projectedMonthExpense)}` : ''}
+      ${budgetLines.length ? `\n      ORÇAMENTOS:\n      ${budgetLines.join('\n      ')}` : ''}
+      ${suggestionLines.length ? `\n      SUGESTÕES DE MELHORIA CALCULADAS DOS DADOS (use como base, com suas palavras):\n      ${suggestionLines.slice(0, 3).map((text) => `- ${text}`).join('\n      ')}` : ''}
+      ${recommendationLines.length ? `\n      ALERTAS DO SISTEMA:\n      ${recommendationLines.join('\n      ')}` : ''}
 
       REGRAS IMPORTANTES:
       - Se o usuário pedir para criar, adicionar ou definir um orçamento, use a ferramenta 'add_budget'.
@@ -171,10 +183,13 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
         response = await askGemini(normalized, systemPrompt);
       } catch (aiError) {
         console.warn('IA indisponível, usando análise local:', aiError)
-        const localReply = buildFinanceChatReply({ message: normalized, insights })
+        const localReply = buildFinanceChatReply({ message: normalized, insights, recommendations, budgets, transactions })
         response = {
           isFunction: false,
-          text: typeof localReply === 'string' ? localReply : (localReply?.text || 'Não consegui analisar agora. Pode repetir?'),
+          text: typeof localReply === 'string' ? localReply : (localReply?.reply || 'Não consegui analisar agora. Pode repetir?'),
+          meta: typeof localReply === 'object' && localReply
+            ? { intent: localReply.intent, followUps: localReply.followUps || [] }
+            : { intent: 'chat' },
         }
       }
 
@@ -209,7 +224,7 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
             id: `assistant-${Date.now()}`,
             role: 'assistant',
             text: response.text,
-            meta: { intent: 'chat' }
+            meta: response.meta || { intent: 'chat' }
           },
         ])
       }

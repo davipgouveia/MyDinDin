@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileUp, Upload, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { dedupeKey, parseStatementText } from '../lib/statementImport'
+import { FileUp, Upload, Loader2, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react'
+import { dedupeKey, descriptionSignature, parseStatementText } from '../lib/statementImport'
 import { extractPdfText } from '../lib/pdfStatement'
 import { suggestCategory, UNCATEGORIZED_LABEL } from '../lib/quickParse'
 import { formatCurrency } from '../utils/format'
@@ -19,7 +19,27 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
   // de cada etapa (lendo, extraindo, encontrou, falhou e por quê) fica
   // escrito até a próxima ação.
   const [status, setStatus] = useState(null)
+  // Padrões aprendidos: assinatura da descrição → categoria. Quando a
+  // pessoa classifica UM lançamento, os outros com a mesma assinatura
+  // (mesmo lugar, outra data) são classificados sozinhos — nesta
+  // importação e nas próximas (fica salvo no aparelho).
+  const [patterns, setPatterns] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('mydindin_description_patterns') || '{}')
+    } catch {
+      return {}
+    }
+  })
   const fileInputRef = useRef(null)
+
+  const savePatterns = (next) => {
+    setPatterns(next)
+    try {
+      localStorage.setItem('mydindin_description_patterns', JSON.stringify(next))
+    } catch {
+      // Sem localStorage, o aprendizado vale só nesta importação.
+    }
+  }
 
   const existingKeys = useMemo(
     () => new Set(transactions.map((tx) => dedupeKey(tx.date, Math.abs(Number(tx.amount) || 0), tx.description))),
@@ -81,13 +101,18 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
         const duplicate = existingKeys.has(key) || seenInFile.has(key)
         seenInFile.add(key)
 
+        const patternCategory = patterns[descriptionSignature(row.description)]
+
         return {
           id: `import_${index}`,
           ...row,
           key,
           duplicate,
           selected: !duplicate,
-          category: suggestCategory(row.description, { categories, learnedMap, type: row.type }) || UNCATEGORIZED_LABEL,
+          fromPattern: Boolean(patternCategory),
+          category: patternCategory
+            || suggestCategory(row.description, { categories, learnedMap, type: row.type })
+            || UNCATEGORIZED_LABEL,
         }
       })
 
@@ -102,9 +127,54 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
     }
   }
 
+  // Classificar UM lançamento ensina o padrão: os outros da lista com a
+  // mesma assinatura que ainda estão "a classificar" recebem a categoria
+  // na hora, e o padrão fica salvo pras próximas importações.
+  const handleCategoryChange = (row, category) => {
+    const signature = descriptionSignature(row.description)
+    let filled = 0
+    const next = rows.map((item) => {
+      if (item.id === row.id) return { ...item, category, fromPattern: false }
+      if (
+        category !== UNCATEGORIZED_LABEL
+        && item.category === UNCATEGORIZED_LABEL
+        && descriptionSignature(item.description) === signature
+      ) {
+        filled += 1
+        return { ...item, category, fromPattern: true }
+      }
+      return item
+    })
+    setRows(next)
+
+    if (category !== UNCATEGORIZED_LABEL) {
+      if (signature) savePatterns({ ...patterns, [signature]: category })
+      setStatus({
+        kind: 'info',
+        text: filled > 0
+          ? `Padrão aprendido: "${row.description}" virou ${category} — e apliquei sozinho em mais ${filled} ${filled === 1 ? 'lançamento' : 'lançamentos'} com a mesma descrição. Nas próximas importações eles já vêm classificados.`
+          : `Padrão aprendido: "${row.description}" virou ${category}. Nas próximas importações, lançamentos assim já vêm classificados.`,
+      })
+    }
+  }
+
   const handleImport = async () => {
     const selected = rows.filter((row) => row.selected)
     if (selected.length === 0 || importing) return
+
+    // Tudo que foi importado com categoria vira padrão aprendido.
+    const learnedNow = { ...patterns }
+    let learnedAny = false
+    selected.forEach((row) => {
+      if (row.category && row.category !== UNCATEGORIZED_LABEL) {
+        const signature = descriptionSignature(row.description)
+        if (signature && learnedNow[signature] !== row.category) {
+          learnedNow[signature] = row.category
+          learnedAny = true
+        }
+      }
+    })
+    if (learnedAny) savePatterns(learnedNow)
 
     setImporting(true)
     try {
@@ -182,6 +252,7 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
           {status.kind === 'reading' && <Loader2 size={14} className="mt-0.5 shrink-0 animate-spin" />}
           {status.kind === 'ok' && <CheckCircle2 size={14} className="mt-0.5 shrink-0" />}
           {status.kind === 'error' && <AlertTriangle size={14} className="mt-0.5 shrink-0" />}
+          {status.kind === 'info' && <Sparkles size={14} className="mt-0.5 shrink-0" />}
           <span>{status.text}</span>
         </div>
       )}
@@ -227,15 +298,14 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
                         {row.type === 'income' ? '+' : '-'}{formatCurrency(row.amount)}
                       </span>
                       {row.duplicate && <span className="text-amber-300"> • já existe no app</span>}
+                      {row.fromPattern && <span className="text-cyan-300"> • classificado pelo padrão aprendido</span>}
                     </span>
                   </span>
                 </label>
 
                 <select
                   value={row.category}
-                  onChange={(event) => setRows((prev) => prev.map((item) => (
-                    item.id === row.id ? { ...item, category: event.target.value } : item
-                  )))}
+                  onChange={(event) => handleCategoryChange(row, event.target.value)}
                   className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-200"
                 >
                   {categoryOptions.map((option) => (

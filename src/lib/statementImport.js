@@ -7,6 +7,21 @@ import { normalizeText } from './quickParse'
 export const dedupeKey = (dateISO, amount, description) =>
   `${dateISO}|${Number(amount).toFixed(2)}|${normalizeText(description).replace(/\s+/g, ' ')}`
 
+// Assinatura de padrão de uma descrição de extrato: o "nome do lugar" sem
+// as datas e números que o banco gruda no texto. É o que permite aprender
+// "RSCSS DROGARIA SAO1908" e "RSCSS DROGARIA SAO0210" como o MESMO
+// padrão, ou "PIX TRANSF LARYSSA19/08" e "PIX TRANSF LARYSSA21/08".
+export function descriptionSignature(description) {
+  const tokens = normalizeText(description || '')
+    .replace(/\d{2}\/\d{2}(\/\d{2,4})?/g, ' ')
+    .replace(/\b\d{3,}\b/g, ' ')
+    .split(' ')
+    .map((token) => token.replace(/\d+$/g, ''))
+    .filter((token) => token.length >= 2)
+
+  return tokens.slice(0, 3).join(' ')
+}
+
 export function parseBRNumber(raw) {
   if (typeof raw === 'number') return raw
   let text = String(raw ?? '').trim()

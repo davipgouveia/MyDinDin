@@ -89,6 +89,9 @@ export function PendingClassification({ transactions = [], categories = [], lear
   const [patterns, setPatterns] = useState(() => readDescriptionPatterns())
   const [aiSuggestions, setAiSuggestions] = useState(() => new Map())
   const [aiLoading, setAiLoading] = useState(false)
+  // Retorno da IA fica ESCRITO na seção (o toast some em segundos e a
+  // pessoa não sabe se a IA respondeu, errou ou não teve certeza).
+  const [aiNote, setAiNote] = useState(null)
   const [bulkSaving, setBulkSaving] = useState(false)
   const [pulse, setPulse] = useState(false)
   const sectionRef = useRef(null)
@@ -175,10 +178,11 @@ export function PendingClassification({ transactions = [], categories = [], lear
   const askAI = async () => {
     if (aiLoading || aiCandidates.length === 0) return
     setAiLoading(true)
+    setAiNote(null)
     try {
       const items = aiCandidates.slice(0, 60).map((entry) => ({
         key: entry.group.key,
-        description: entry.group.sample,
+        description: entry.group.signature,
         type: entry.group.type,
       }))
       const result = await classifyDescriptionsWithAI(
@@ -186,15 +190,19 @@ export function PendingClassification({ transactions = [], categories = [], lear
         categories.filter((category) => category !== UNCATEGORIZED_LABEL),
       )
       if (result.size === 0) {
-        toast.info('A IA não teve certeza sobre essas descrições. Vale classificar um de cada tipo — o padrão fica aprendido.')
+        setAiNote('A IA não teve certeza sobre essas descrições (PIX pra pessoa, sem mais contexto, ela prefere não chutar). Classifique um de cada tipo manualmente — o padrão fica aprendido e os próximos já vêm prontos.')
+        toast.info('A IA não teve certeza sobre essas descrições.')
       } else {
         setAiSuggestions((current) => new Map([...current, ...result]))
+        setAiNote(`A IA sugeriu categoria para ${result.size} ${result.size === 1 ? 'grupo' : 'grupos'} — confira os selos (IA) na lista e aceite os que fizerem sentido.`)
         toast.success(`A IA sugeriu categoria para ${result.size} ${result.size === 1 ? 'grupo' : 'grupos'}. Confira e aceite com um toque.`)
       }
     } catch (aiError) {
-      toast.error(aiError.code === 'AI_NOT_CONFIGURED'
+      const message = aiError.code === 'AI_NOT_CONFIGURED'
         ? 'A IA não está disponível agora — dá pra classificar pelos padrões, que também aprendem.'
-        : `A IA não respondeu: ${aiError.message}`)
+        : `A IA não respondeu: ${aiError.message}`
+      setAiNote(message)
+      toast.error(message)
     } finally {
       setAiLoading(false)
     }
@@ -219,6 +227,7 @@ export function PendingClassification({ transactions = [], categories = [], lear
       }
       setPatterns(readDescriptionPatterns())
       setAiSuggestions(new Map())
+      setAiNote(null)
       toast.success(`${totalApplied} lançamentos classificados com as sugestões da IA.`)
     } catch (bulkError) {
       toast.error(`Erro ao aceitar as sugestões: ${bulkError.message}`)
@@ -275,6 +284,13 @@ export function PendingClassification({ transactions = [], categories = [], lear
       <p className="mb-3 text-xs text-slate-400">
         Faltam <strong className="text-slate-200">{groups.length} {groups.length === 1 ? 'grupo' : 'grupos'}</strong> ({transactions.length} lançamentos) — cada linha é uma descrição: classificou uma vez, vale pra todos e fica aprendido.
       </p>
+
+      {aiNote && (
+        <div role="status" className="mb-3 flex items-start gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2.5 text-xs leading-relaxed text-violet-200">
+          <Sparkles size={14} className="mt-0.5 shrink-0" />
+          <span>{aiNote}</span>
+        </div>
+      )}
 
       <ul className="space-y-2">
         {enriched.slice(0, 30).map(({ group, category, source }) => (

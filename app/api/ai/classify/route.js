@@ -12,8 +12,12 @@ const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b'
 const MAX_ITEMS = 60
 
 function buildPrompt(items, categories) {
+  // Os itens são numerados (1, 2, 3...) de propósito: pedir pro modelo
+  // devolver a chave crua do grupo ("expense|pix transf laryssa") fazia
+  // ele alterar a chave (caixa, espaços, o "|") e a validação descartar
+  // TODAS as sugestões. Número simples não tem como errar.
   const list = items
-    .map((item) => `- [${item.key}] (${item.type === 'income' ? 'entrada' : 'saída'}) ${item.description}`)
+    .map((item, index) => `${index + 1}. (${item.type === 'income' ? 'entrada' : 'saída'}) ${item.description}`)
     .join('\n')
 
   return [
@@ -23,7 +27,7 @@ function buildPrompt(items, categories) {
     '- PIX/TED com nome de pessoa: se não der pra saber o motivo, NÃO responda o item.',
     '- Tarifas, IOF, anuidade e pacote de serviços do banco são "Contas & Serviços" (se essa categoria existir).',
     '- "REND PAGO APLIC" e rendimentos de aplicação são "Investimentos" (se existir).',
-    '- Responda SOMENTE com um array JSON no formato [{"key":"...","category":"..."} ], sem texto antes ou depois.',
+    '- Responda SOMENTE com um objeto JSON no formato {"suggestions":[{"id":1,"category":"..."}]}, sem texto antes ou depois.',
     '- Omita os itens em que você não tiver confiança razoável.',
     '',
     'Descrições:',
@@ -32,19 +36,35 @@ function buildPrompt(items, categories) {
 }
 
 function parseSuggestions(text, items, categories) {
-  const start = String(text || '').indexOf('[')
-  const end = String(text || '').lastIndexOf(']')
-  if (start === -1 || end <= start) return []
+  const raw = String(text || '')
 
-  let parsed
-  try {
-    parsed = JSON.parse(String(text).slice(start, end + 1))
-  } catch {
-    return []
+  // Aceita o objeto {"suggestions":[...]} e, por segurança, um array
+  // solto [...]. Modelos de raciocínio às vezes cercam o JSON de texto:
+  // recorta do primeiro abre ao último fecha do formato encontrado.
+  let parsed = null
+  const objStart = raw.indexOf('{')
+  const objEnd = raw.lastIndexOf('}')
+  if (objStart !== -1 && objEnd > objStart) {
+    try {
+      const candidate = JSON.parse(raw.slice(objStart, objEnd + 1))
+      if (candidate && Array.isArray(candidate.suggestions)) parsed = candidate.suggestions
+    } catch {
+      parsed = null
+    }
   }
-  if (!Array.isArray(parsed)) return []
+  if (!parsed) {
+    const arrStart = raw.indexOf('[')
+    const arrEnd = raw.lastIndexOf(']')
+    if (arrStart === -1 || arrEnd <= arrStart) return []
+    try {
+      const candidate = JSON.parse(raw.slice(arrStart, arrEnd + 1))
+      if (Array.isArray(candidate)) parsed = candidate
+    } catch {
+      return []
+    }
+  }
+  if (!parsed) return []
 
-  const validKeys = new Set(items.map((item) => item.key))
   const canonicalByNormalized = new Map(
     categories.map((name) => [name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(), name]),
   )
@@ -52,11 +72,11 @@ function parseSuggestions(text, items, categories) {
   const suggestions = []
   parsed.forEach((entry) => {
     if (!entry || typeof entry !== 'object') return
-    const key = String(entry.key || '')
-    if (!validKeys.has(key)) return
+    const index = Number(entry.id) - 1
+    if (!Number.isInteger(index) || index < 0 || index >= items.length) return
     const normalized = String(entry.category || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
     const canonical = canonicalByNormalized.get(normalized)
-    if (canonical) suggestions.push({ key, category: canonical })
+    if (canonical) suggestions.push({ key: items[index].key, category: canonical })
   })
 
   return suggestions
@@ -73,6 +93,10 @@ async function callGroq(apiKey, prompt) {
       model: GROQ_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.1,
+      // Tarefa mecânica: raciocínio baixo responde mais rápido e foca
+      // no JSON pedido, sem cercar a resposta de texto.
+      reasoning_effort: 'low',
+      response_format: { type: 'json_object' },
     }),
   })
 

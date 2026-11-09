@@ -1,4 +1,4 @@
-import { formatCurrency } from './format'
+import { formatCurrency, roundMoney } from './format'
 
 const formatDate = (value) => {
   const date = new Date(value)
@@ -41,7 +41,7 @@ export const exportTransactionsCsv = (transactions = []) => {
 }
 
 const aggregateSummary = (transactions = [], fromDate, toDate) => {
-  return transactions
+  const totals = transactions
     .filter((item) => {
       const txDate = new Date(item.date || item.transaction_date || item.createdAt || item.created_at)
       if (Number.isNaN(txDate.getTime())) return false
@@ -56,6 +56,7 @@ const aggregateSummary = (transactions = [], fromDate, toDate) => {
       },
       { income: 0, expense: 0 },
     )
+  return { income: roundMoney(totals.income), expense: roundMoney(totals.expense) }
 }
 
 export const printMonthlyPdfReport = (transactions = [], summary = { income: 0, expense: 0, balance: 0 }) => {

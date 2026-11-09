@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { CalendarRange, TrendingDown, TrendingUp } from 'lucide-react'
-import { formatCurrency } from '../utils/format'
+import { formatCurrency, roundMoney } from '../utils/format'
 import { parseDateValue } from '../utils/date'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -27,7 +27,13 @@ function summarize(transactions, start, end) {
 
   const topCategory = [...byCategory.entries()].sort((a, b) => b[1] - a[1])[0] || null
 
-  return { income, expense, balance: income - expense, count, topCategory }
+  return {
+    income: roundMoney(income),
+    expense: roundMoney(expense),
+    balance: roundMoney(income - expense),
+    count,
+    topCategory: topCategory ? [topCategory[0], roundMoney(topCategory[1])] : null,
+  }
 }
 
 export function WeeklySummary({ transactions = [], panelClass = '' }) {

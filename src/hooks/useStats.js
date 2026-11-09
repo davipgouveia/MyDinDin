@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useFinance } from '../context/FinanceContext'
 import { startOfDay, toDateKey } from '../utils/date'
+import { roundMoney } from '../utils/format'
 
 export function useDailyMonthlyStats() {
   const { visibleTransactions } = useFinance()
@@ -102,6 +103,15 @@ export function useDailyMonthlyStats() {
       dailyBalance[i].value = (dailyIncomes[i]?.value || 0) - (dailyExpenses[i]?.value || 0)
     }
 
+    // Arredonda tudo pra centavos: somas em float deixam poeira
+    // (2852.1200000000003) que vaza pros gráficos e relatórios.
+    dailyExpenses.forEach((d) => { d.value = roundMoney(d.value) })
+    dailyIncomes.forEach((d) => { d.value = roundMoney(d.value) })
+    dailyBalance.forEach((d) => { d.value = roundMoney(d.value) })
+    Object.keys(monthlyByCategory).forEach((key) => {
+      monthlyByCategory[key] = roundMoney(monthlyByCategory[key])
+    })
+
     // Ultimos 6 meses para graficos comparativos
     const monthlyComparison = Array.from({ length: 6 }).map((_, index) => {
       const baseDate = new Date(today)
@@ -113,9 +123,9 @@ export function useDailyMonthlyStats() {
       return {
         monthKey,
         label: baseDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
-        income: monthData.income,
-        expense: monthData.expense,
-        balance: monthData.income - monthData.expense,
+        income: roundMoney(monthData.income),
+        expense: roundMoney(monthData.expense),
+        balance: roundMoney(monthData.income - monthData.expense),
       }
     })
 
@@ -124,17 +134,16 @@ export function useDailyMonthlyStats() {
     const todayKey = toDateKey(today)
     const totalDailyExpenses = dailyExpenses.find((d) => d.date === todayKey)?.value || 0
     const totalDailyIncomes = dailyIncomes.find((d) => d.date === todayKey)?.value || 0
-    const totalMonthlyExpenses = Object.values(monthlyByCategory).reduce(
-      (sum, val) => sum + val,
-      0,
+    const totalMonthlyExpenses = roundMoney(
+      Object.values(monthlyByCategory).reduce((sum, val) => sum + val, 0),
     )
     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-    const totalMonthlyIncomes = monthlyAccumulator[currentMonthKey]?.income || 0
+    const totalMonthlyIncomes = roundMoney(monthlyAccumulator[currentMonthKey]?.income || 0)
 
     // Media diaria do MES: total do mes / dias corridos ate hoje
     const daysElapsedInMonth = Math.max(today.getDate(), 1)
-    const avgDailyExpense = totalMonthlyExpenses / daysElapsedInMonth
-    const avgDailyIncome = totalMonthlyIncomes / daysElapsedInMonth
+    const avgDailyExpense = roundMoney(totalMonthlyExpenses / daysElapsedInMonth)
+    const avgDailyIncome = roundMoney(totalMonthlyIncomes / daysElapsedInMonth)
 
     // Encontrar maior gasto do mês
     const largestExpenseCategory = Object.entries(monthlyByCategory).sort(
@@ -154,13 +163,13 @@ export function useDailyMonthlyStats() {
       totalDailyIncomes,
       totalMonthlyExpenses,
       totalMonthlyIncomes,
-      balance: totalDailyIncomes - totalDailyExpenses,
-      monthlyBalance: totalMonthlyIncomes - totalMonthlyExpenses,
+      balance: roundMoney(totalDailyIncomes - totalDailyExpenses),
+      monthlyBalance: roundMoney(totalMonthlyIncomes - totalMonthlyExpenses),
 
       // Médias
       avgDailyExpense,
       avgDailyIncome,
-      avgDailyBalance: avgDailyIncome - avgDailyExpense,
+      avgDailyBalance: roundMoney(avgDailyIncome - avgDailyExpense),
 
       // Maiores gastos do mês
       largestExpenseCategory: largestExpenseCategory
@@ -202,9 +211,12 @@ export function useCategoryStats() {
       categoryStats[category].transactions.push(transaction)
     })
 
-    const totalAmount = Object.values(categoryStats).reduce(
-      (sum, cat) => sum + cat.total,
-      0,
+    Object.values(categoryStats).forEach((stat) => {
+      stat.total = roundMoney(stat.total)
+    })
+
+    const totalAmount = roundMoney(
+      Object.values(categoryStats).reduce((sum, cat) => sum + cat.total, 0),
     )
 
     // Calcular percentual

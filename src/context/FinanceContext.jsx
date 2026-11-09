@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { getPublicAppUrlWithPath } from '../lib/publicAppUrl'
 import { normalizeText } from '../lib/quickParse'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants/categories'
+import { roundMoney } from '../utils/format'
 
 // O formulario avancado guarda a categoria pelo ID ("alimentacao"); sem
 // este mapa, o id era tratado como nome e criava uma categoria duplicada
@@ -889,9 +890,9 @@ export function FinanceProvider({ children }) {
       .reduce((sum, tx) => sum + tx.amount, 0)
 
     return {
-      income,
-      expense,
-      balance: income - expense,
+      income: roundMoney(income),
+      expense: roundMoney(expense),
+      balance: roundMoney(income - expense),
     }
   }, [visibleTransactions])
 
@@ -904,7 +905,7 @@ export function FinanceProvider({ children }) {
     }, {})
 
     return Object.entries(grouped)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ name, value: roundMoney(value) }))
       .sort((a, b) => b.value - a.value)
   }, [visibleTransactions])
 

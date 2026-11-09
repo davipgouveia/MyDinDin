@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useDailyMonthlyStats } from '../hooks/useStats'
+import { formatCurrency } from '../utils/format'
 
 export function DailyStatsCard() {
   const { totalDailyExpenses, totalDailyIncomes, balance } = useDailyMonthlyStats()
@@ -173,6 +174,7 @@ export function AdvancedStatsCharts() {
               <XAxis dataKey="label" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" />
               <Tooltip
+                formatter={(value) => formatCurrency(value)}
                 contentStyle={{
                   backgroundColor: '#0f172a',
                   border: '1px solid #334155',
@@ -200,6 +202,7 @@ export function AdvancedStatsCharts() {
               />
               <YAxis stroke="#94a3b8" />
               <Tooltip
+                formatter={(value) => formatCurrency(value)}
                 contentStyle={{
                   backgroundColor: '#0f172a',
                   border: '1px solid #334155',

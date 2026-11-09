@@ -1,6 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { getPublicAppUrlWithPath } from '../lib/publicAppUrl'
+import { normalizeText } from '../lib/quickParse'
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants/categories'
+
+// O formulario avancado guarda a categoria pelo ID ("alimentacao"); sem
+// este mapa, o id era tratado como nome e criava uma categoria duplicada
+// sem acento. Resolve id -> nome oficial antes de procurar/criar.
+const CATEGORY_NAME_BY_ID = new Map(
+  [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map((category) => [category.id, category.name]),
+)
 
 const FinanceContext = createContext(undefined)
 
@@ -48,6 +57,8 @@ const mapTransactionRow = (row) => ({
   dueDate: row.due_date ?? null,
   isPaid: row.is_paid ?? true,
   paymentStatus: row.payment_status ?? null,
+  paymentMethod: row.payment_method ?? null,
+  notes: row.notes ?? null,
   source: row.source ?? 'manual',
 })
 
@@ -150,7 +161,7 @@ export function FinanceProvider({ children }) {
   const loadTransactions = useCallback(async (groupId) => {
     const { data, error: txError } = await supabase
       .from('transactions')
-      .select('id, profile_id, amount, type, transaction_date, due_date, is_paid, payment_status, note, source, created_at, profile:profiles(full_name), category:categories(name)')
+      .select('id, profile_id, amount, type, transaction_date, due_date, is_paid, payment_status, payment_method, notes, note, source, created_at, profile:profiles(full_name), category:categories(name)')
       .eq('group_id', groupId)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -879,22 +890,29 @@ export function FinanceProvider({ children }) {
       throw new Error('Tipo de transacao invalido.')
     }
 
-    const categoryName = (data.category || 'Outros').trim()
-    const normalizedCategory = categoryName.length > 0 ? categoryName : 'Outros'
+    const rawCategory = (data.category || 'Outros').trim() || 'Outros'
+    // 1) id de categoria padrao ("alimentacao") -> nome oficial.
+    // 2) comparacao sem acento/caixa contra as categorias do grupo, pra
+    // nunca duplicar "Alimentação" com uma "alimentacao" nova.
+    let normalizedCategory = CATEGORY_NAME_BY_ID.get(rawCategory) || rawCategory
 
-    const { data: existingCategory, error: categoryLookupError } = await supabase
+    const { data: groupCategories, error: categoryLookupError } = await supabase
       .from('categories')
       .select('id, name')
       .eq('group_id', profile.group_id)
-      .eq('name', normalizedCategory)
-      .maybeSingle()
 
     if (categoryLookupError) {
       setSubmitting(false)
       throw categoryLookupError
     }
 
-    let categoryId = existingCategory?.id ?? null
+    const normalizedTarget = normalizeText(normalizedCategory)
+    const matchedCategory = (groupCategories || []).find(
+      (category) => normalizeText(category.name) === normalizedTarget,
+    )
+
+    let categoryId = matchedCategory?.id ?? null
+    if (matchedCategory) normalizedCategory = matchedCategory.name
 
     if (!categoryId) {
       const { data: createdCategory, error: categoryInsertError } = await supabase
@@ -937,6 +955,8 @@ export function FinanceProvider({ children }) {
         due_date: data.dueDate || null,
         is_paid: data.isPaid ?? true,
         payment_status: data.isPaid ? 'paid' : 'pending',
+        payment_method: data.paymentMethod || null,
+        notes: data.notes || null,
         note: data.description,
         source: data.source || 'manual',
         created_by: user.id,

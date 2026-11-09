@@ -1,6 +1,7 @@
 import { motion, Reorder } from 'framer-motion'
 import { Plus, GripVertical, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { ConfirmDialog } from './ConfirmDialog'
 
 export function CategoriesManager({
   categories = [],
@@ -12,6 +13,7 @@ export function CategoriesManager({
   const [items, setItems] = useState(categories)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newCategory, setNewCategory] = useState({ name: '', color: '#0369a1', icon: '📌' })
+  const [pendingRemoval, setPendingRemoval] = useState(null)
 
   useEffect(() => {
     setItems(categories)
@@ -36,6 +38,12 @@ export function CategoriesManager({
   const handleRemoveCategory = (categoryId) => {
     setItems((prev) => prev.filter((item) => item.id !== categoryId))
     onRemoveCustom(categoryId)
+  }
+
+  const handleConfirmRemoval = () => {
+    if (!pendingRemoval) return
+    handleRemoveCategory(pendingRemoval.id)
+    setPendingRemoval(null)
   }
 
   const containerVariants = {
@@ -140,7 +148,7 @@ export function CategoriesManager({
                   {category.isCustom ? (
                     <button
                       type="button"
-                      onClick={() => handleRemoveCategory(category.id)}
+                      onClick={() => setPendingRemoval(category)}
                       className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-300 transition hover:bg-red-500/20"
                       title="Excluir categoria personalizada"
                     >
@@ -176,7 +184,7 @@ export function CategoriesManager({
               {category.isCustom && (
                 <button
                   type="button"
-                  onClick={() => handleRemoveCategory(category.id)}
+                  onClick={() => setPendingRemoval(category)}
                   className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-300 transition hover:bg-red-500/20"
                   title="Excluir categoria personalizada"
                 >
@@ -197,6 +205,16 @@ export function CategoriesManager({
           Salvar ordem
         </button>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingRemoval)}
+        danger
+        title="Excluir categoria?"
+        message={pendingRemoval ? `A categoria "${pendingRemoval.name}" será excluída. Lançamentos que já usam ela mantêm o histórico.` : ''}
+        confirmLabel="Excluir"
+        onConfirm={handleConfirmRemoval}
+        onCancel={() => setPendingRemoval(null)}
+      />
     </div>
   )
 }

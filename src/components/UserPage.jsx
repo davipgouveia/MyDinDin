@@ -45,6 +45,12 @@ export function UserPage({
   const [fullNameForSwitch, setFullNameForSwitch] = useState(profile?.full_name || '')
   const [memberConfirm, setMemberConfirm] = useState(null)
   const [memberActionBusy, setMemberActionBusy] = useState(false)
+  const [budgetSaving, setBudgetSaving] = useState(false)
+  const [inviteSending, setInviteSending] = useState(false)
+  const [renameSaving, setRenameSaving] = useState(false)
+  const [pendingBudget, setPendingBudget] = useState(null)
+  const [pendingRevoke, setPendingRevoke] = useState(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
   const { theme, language, accent, density, layoutMode, toggleTheme, setLanguage, setAccent, setDensity, setLayoutMode, t } = usePreferences()
   const isLight = theme === 'light'
   const isCompact = density === 'compact'
@@ -97,12 +103,17 @@ export function UserPage({
 
   const handleCreateBudget = async (event) => {
     event.preventDefault()
+    if (budgetSaving) return
+
+    setBudgetSaving(true)
     try {
       await onCreateBudget(budgetCategory, Number(budgetLimit), 'mensal')
       setBudgetLimit('')
       toast.success('Orçamento compartilhado salvo!')
     } catch (budgetError) {
       toast.error(`Erro ao salvar orçamento: ${budgetError.message}`)
+    } finally {
+      setBudgetSaving(false)
     }
   }
 
@@ -112,6 +123,30 @@ export function UserPage({
       toast.success('Orçamento removido!')
     } catch (budgetError) {
       toast.error(`Erro ao remover orçamento: ${budgetError.message}`)
+    }
+  }
+
+  const handleConfirmBudgetDelete = async () => {
+    if (!pendingBudget) return
+
+    setConfirmBusy(true)
+    try {
+      await handleDeleteBudget(pendingBudget.id)
+      setPendingBudget(null)
+    } finally {
+      setConfirmBusy(false)
+    }
+  }
+
+  const handleConfirmRevoke = async () => {
+    if (!pendingRevoke) return
+
+    setConfirmBusy(true)
+    try {
+      await handleRevokeInvite(pendingRevoke.id)
+      setPendingRevoke(null)
+    } finally {
+      setConfirmBusy(false)
     }
   }
 
@@ -130,16 +165,24 @@ export function UserPage({
 
   const handleGroupRename = async (event) => {
     event.preventDefault()
+    if (renameSaving) return
+
+    setRenameSaving(true)
     try {
       await onUpdateGroupSettings({ name: groupNameDraft })
       toast.success('Nome do grupo atualizado com sucesso!')
     } catch (groupError) {
       toast.error(`Erro ao atualizar grupo: ${groupError.message}`)
+    } finally {
+      setRenameSaving(false)
     }
   }
 
   const handleInviteSubmit = async (event) => {
     event.preventDefault()
+    if (inviteSending) return
+
+    setInviteSending(true)
     try {
       const emails = inviteEmail
         .split(/[\s,;]+/)
@@ -190,6 +233,8 @@ export function UserPage({
       }
     } catch (inviteError) {
       toast.error(`Erro ao enviar convite: ${inviteError.message}`)
+    } finally {
+      setInviteSending(false)
     }
   }
 
@@ -325,11 +370,16 @@ export function UserPage({
           <button
             type="button"
             onClick={handleTestWebhook}
-            className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${accentButtonClass}`}
+            disabled={!isWebhookConfigured()}
+            title={isWebhookConfigured() ? 'Enviar um alerta de teste' : 'Webhook ainda não configurado neste ambiente'}
+            className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${accentButtonClass}`}
           >
             <BellRing size={14} />
             Testar webhook
           </button>
+          {!isWebhookConfigured() && (
+            <p className={`mt-1.5 text-[11px] ${textMutedClass}`}>Disponível quando o webhook estiver configurado.</p>
+          )}
         </div>
 
         <div className={`rounded-2xl border ${isCompact ? 'p-3' : 'p-4'} ${surfaceClass}`}>
@@ -455,9 +505,10 @@ export function UserPage({
                 />
                 <button
                   type="submit"
-                  className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${accentButtonClass}`}
+                  disabled={renameSaving}
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${accentButtonClass}`}
                 >
-                  Salvar nome do grupo
+                  {renameSaving ? 'Salvando...' : 'Salvar nome do grupo'}
                 </button>
               </form>
             ) : (
@@ -530,9 +581,10 @@ export function UserPage({
                 />
                 <button
                   type="submit"
-                  className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/15"
+                  disabled={inviteSending}
+                  className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Convidar
+                  {inviteSending ? 'Enviando...' : 'Convidar'}
                 </button>
               </form>
             )}
@@ -551,7 +603,7 @@ export function UserPage({
                           </p>
                           <button
                             type="button"
-                            onClick={() => handleRevokeInvite(invite.id)}
+                            onClick={() => setPendingRevoke(invite)}
                             className="mt-2 rounded-md border border-red-500/25 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-500/15"
                           >
                             Revogar
@@ -637,9 +689,10 @@ export function UserPage({
 
           <button
             type="submit"
-            className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/15"
+            disabled={budgetSaving}
+            className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Salvar
+            {budgetSaving ? 'Salvando...' : 'Salvar'}
           </button>
         </form>
 
@@ -655,7 +708,7 @@ export function UserPage({
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleDeleteBudget(budget.id)}
+                  onClick={() => setPendingBudget(budget)}
                   className="rounded-full border border-red-500/25 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500/15"
                   title="Remover orçamento compartilhado"
                 >
@@ -727,6 +780,28 @@ export function UserPage({
         busy={memberActionBusy}
         onConfirm={handleMemberConfirm}
         onCancel={() => setMemberConfirm(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingBudget)}
+        danger
+        title="Remover orçamento compartilhado?"
+        message={pendingBudget ? `O limite de "${pendingBudget.category}" será removido. Os lançamentos não são apagados.` : ''}
+        confirmLabel="Remover"
+        busy={confirmBusy}
+        onConfirm={handleConfirmBudgetDelete}
+        onCancel={() => setPendingBudget(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingRevoke)}
+        danger
+        title="Revogar convite?"
+        message={pendingRevoke ? `O convite para ${pendingRevoke.invitee_email} deixa de valer na hora. A pessoa não consegue mais entrar por esse link.` : ''}
+        confirmLabel="Revogar"
+        busy={confirmBusy}
+        onConfirm={handleConfirmRevoke}
+        onCancel={() => setPendingRevoke(null)}
       />
     </section>
   )

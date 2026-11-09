@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Repeat } from 'lucide-react'
 import { toast } from '../hooks/useToast'
 
@@ -9,7 +9,7 @@ const todayISO = () => {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
-export function RecurringPaymentForm({ categories = [], onCreate, panelClass = '' }) {
+export function RecurringPaymentForm({ categories = [], onCreate, editing = null, onUpdate, onCancelEdit, panelClass = '' }) {
   const [form, setForm] = useState({
     name: '',
     amount: '',
@@ -19,6 +19,24 @@ export function RecurringPaymentForm({ categories = [], onCreate, panelClass = '
     nextDueDate: todayISO(),
     autoPost: true,
   })
+  const sectionRef = useRef(null)
+
+  // Modo edicao: o botao "Editar" da lista preenche o formulario com os
+  // dados da conta (antes ele nao fazia nada).
+  useEffect(() => {
+    if (!editing) return
+
+    setForm({
+      name: editing.name || '',
+      amount: editing.amount != null ? String(editing.amount).replace('.', ',') : '',
+      type: editing.type || 'expense',
+      category: editing.category || 'Contas & Serviços',
+      frequency: editing.frequency || 'mensal',
+      nextDueDate: String(editing.nextDueDate || editing.startDate || todayISO()).slice(0, 10),
+      autoPost: editing.autoPost === true,
+    })
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [editing])
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -33,7 +51,7 @@ export function RecurringPaymentForm({ categories = [], onCreate, panelClass = '
       return
     }
 
-    onCreate({
+    const payload = {
       name: form.name.trim(),
       amount,
       type: form.type,
@@ -42,7 +60,14 @@ export function RecurringPaymentForm({ categories = [], onCreate, panelClass = '
       nextDueDate: form.nextDueDate,
       startDate: form.nextDueDate,
       autoPost: form.autoPost,
-    })
+    }
+
+    if (editing && onUpdate) {
+      onUpdate(editing.id, payload)
+      return
+    }
+
+    onCreate(payload)
 
     setForm((prev) => ({ ...prev, name: '', amount: '' }))
   }
@@ -51,12 +76,12 @@ export function RecurringPaymentForm({ categories = [], onCreate, panelClass = '
   const labelClass = 'mb-1 block text-[11px] uppercase tracking-[0.14em] text-slate-400'
 
   return (
-    <section className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
+    <section ref={sectionRef} className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
       <div className="mb-1 flex items-center gap-2">
         <span className="rounded-full bg-purple-400/10 p-1.5 text-purple-300">
           <Repeat size={14} />
         </span>
-        <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Nova conta fixa</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">{editing ? 'Editar conta fixa' : 'Nova conta fixa'}</h3>
       </div>
       <p className="mb-4 text-xs text-slate-400">
         Aluguel, internet, streaming, salário... Cadastre uma vez e, se deixar o lançamento automático ligado, ela se lança sozinha todo mês. Sem precisar lembrar.
@@ -160,8 +185,18 @@ export function RecurringPaymentForm({ categories = [], onCreate, panelClass = '
           type="submit"
           className="rounded-xl bg-purple-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-400 sm:col-span-2"
         >
-          Salvar conta fixa
+          {editing ? 'Salvar alterações' : 'Salvar conta fixa'}
         </button>
+
+        {editing && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-400 sm:col-span-2"
+          >
+            Cancelar edição
+          </button>
+        )}
       </form>
     </section>
   )

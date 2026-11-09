@@ -26,7 +26,7 @@ import { FirstStep } from './components/FirstStep'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { RecurringPaymentForm } from './components/RecurringPaymentForm'
 import { buildLearnedCategoryMap, UNCATEGORIZED_LABEL } from './lib/quickParse'
-import { useRecurringAutoPost } from './hooks/useRecurringAutoPost'
+import { useRecurringAutoPost, advanceRecurringDate } from './hooks/useRecurringAutoPost'
 import { AppFooter } from './components/AppFooter'
 import { HelpHint } from './components/HelpHint'
 import { LoadingOverlay } from './components/LoadingOverlay'
@@ -45,6 +45,10 @@ function DashboardContent() {
   const [activePage, setActivePage] = useState('dashboard')
   const [showSettings, setShowSettings] = useState(false)
   const [transactionType, setTransactionType] = useState('expense')
+  const [pendingDeleteTx, setPendingDeleteTx] = useState(null)
+  const [deletingTx, setDeletingTx] = useState(false)
+  const [pendingRemoval, setPendingRemoval] = useState(null)
+  const [editingRecurring, setEditingRecurring] = useState(null)
 
   const {
     paymentReminders,
@@ -179,18 +183,87 @@ function DashboardContent() {
         date: formData.date || new Date().toISOString().slice(0, 10),
         dueDate: formData.dueDate || null,
         isPaid: formData.isPaid ?? true,
+        paymentMethod: formData.paymentMethod || null,
+        notes: formData.notes?.trim() ? formData.notes.trim() : null,
       })
+
+      // "Pagamento recorrente" marcado no formulario cria a conta fixa de
+      // verdade — antes esses campos eram coletados e descartados em
+      // silencio, e a pessoa achava que a conta ia se repetir.
+      if (formData.isRecurring && formData.frequency && formData.frequency !== 'unica') {
+        const baseDate = formData.date || new Date().toISOString().slice(0, 10)
+        const categoryName = getOrderedCategories(resolvedType)
+          .find((category) => category.id === formData.category)?.name || formData.category
+
+        addRecurringPayment({
+          name: formData.description,
+          amount: Math.abs(formData.amount),
+          type: resolvedType,
+          category: categoryName,
+          frequency: formData.frequency,
+          startDate: baseDate,
+          nextDueDate: advanceRecurringDate(baseDate, formData.frequency),
+          endDate: formData.endDate || null,
+          autoPost: true,
+        })
+        toast.success('Conta fixa criada: ela lança sozinha no vencimento. Dá pra desligar em Lembretes.')
+      }
+
       toast.success('Transação adicionada com sucesso!')
       setAdvancedModalOpen(false)
     } catch (addError) {
       toast.error(`Erro: ${addError.message}`)
     }
-  }, [addTransaction, transactionType])
+  }, [addRecurringPayment, addTransaction, getOrderedCategories, transactionType])
+
+  const handleConfirmDeleteTx = useCallback(async () => {
+    if (!pendingDeleteTx) return
+
+    setDeletingTx(true)
+    try {
+      await deleteTransaction(pendingDeleteTx.id)
+      toast.success('Lançamento excluído.')
+      setPendingDeleteTx(null)
+    } catch (deleteError) {
+      toast.error(`Não consegui excluir: ${deleteError.message}`)
+    } finally {
+      setDeletingTx(false)
+    }
+  }, [deleteTransaction, pendingDeleteTx])
+
+  const handleConfirmRemoval = useCallback(() => {
+    if (!pendingRemoval) return
+
+    if (pendingRemoval.kind === 'reminder') {
+      removePaymentReminder(pendingRemoval.id)
+      toast.success('Lembrete removido!')
+    } else {
+      removeRecurringPayment(pendingRemoval.id)
+    }
+    setPendingRemoval(null)
+  }, [pendingRemoval, removePaymentReminder, removeRecurringPayment])
+
+  const handleRecommendationAction = useCallback((rec) => {
+    if (rec.id === 'good_savings') {
+      dismissRecommendation(rec.id)
+      toast.success('Continue assim! 🎉')
+      return
+    }
+
+    if (['high_category', 'spending_spike', 'monthly_forecast_growth'].includes(rec.id)) {
+      setActivePage('stats')
+      toast.info('Te levei pras Estatísticas pra analisar isso com calma.')
+      return
+    }
+
+    setActivePage('user')
+    toast.info('Os orçamentos compartilhados ficam na aba Usuário.')
+  }, [dismissRecommendation])
 
   const handleRemoveReminder = useCallback((reminderId) => {
-    removePaymentReminder(reminderId)
-    toast.success('Lembrete removido!')
-  }, [removePaymentReminder])
+    const reminder = paymentReminders.find((item) => item.id === reminderId)
+    setPendingRemoval({ kind: 'reminder', id: reminderId, label: reminder?.description || 'este lembrete' })
+  }, [paymentReminders])
 
   const handleCompleteReminder = useCallback((reminderId) => {
     updatePaymentReminder(reminderId, { completed: true })
@@ -198,9 +271,9 @@ function DashboardContent() {
   }, [updatePaymentReminder])
 
   const handleRemoveRecurring = useCallback((paymentId) => {
-    removeRecurringPayment(paymentId)
-    toast.success('Pagamento recorrente removido!')
-  }, [removeRecurringPayment])
+    const payment = recurringPayments.find((item) => item.id === paymentId)
+    setPendingRemoval({ kind: 'recurring', id: paymentId, label: payment?.name || 'este pagamento recorrente' })
+  }, [recurringPayments])
 
   const openQuickAdd = useCallback((type) => {
     setTransactionType(type)
@@ -443,7 +516,7 @@ function DashboardContent() {
                   <TransactionItem
                     key={transaction.id}
                     transaction={transaction}
-                    onDelete={deleteTransaction}
+                    onDelete={(id) => setPendingDeleteTx(transactions.find((tx) => tx.id === id) || null)}
                     canDelete={profile?.role === 'owner' || transaction.profileId === user?.id}
                     comments={transactionComments[transaction.id] || []}
                     onAddComment={addTransactionComment}
@@ -528,6 +601,13 @@ function DashboardContent() {
           <RecurringPaymentForm
             categories={allCategoryNames}
             onCreate={addRecurringPayment}
+            editing={editingRecurring}
+            onUpdate={(paymentId, payload) => {
+              updateRecurringPayment(paymentId, payload)
+              toast.success('Conta fixa atualizada!')
+              setEditingRecurring(null)
+            }}
+            onCancelEdit={() => setEditingRecurring(null)}
             panelClass={panelClass}
           />
 
@@ -535,6 +615,7 @@ function DashboardContent() {
             <RecurringPaymentsSection
               payments={recurringPayments}
               onDelete={handleRemoveRecurring}
+              onEdit={(paymentId) => setEditingRecurring(recurringPayments.find((payment) => payment.id === paymentId) || null)}
               onToggleAuto={(payment) => {
                 updateRecurringPayment(payment.id, { autoPost: payment.autoPost !== true })
                 toast.success(payment.autoPost ? `"${payment.name}" não lança mais sozinho.` : `"${payment.name}" agora lança sozinho no vencimento.`)
@@ -554,7 +635,7 @@ function DashboardContent() {
           />
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <AIRecommendationsPanel recommendations={recommendations} insights={insights} onDismiss={dismissRecommendation} />
+            <AIRecommendationsPanel recommendations={recommendations} insights={insights} onDismiss={dismissRecommendation} onAction={handleRecommendationAction} />
           </motion.div>
 
           {getBudgetStatus && getBudgetStatus.length > 0 && (
@@ -615,6 +696,31 @@ function DashboardContent() {
         transactionType={transactionType}
       />
 
+      <ConfirmDialog
+        open={Boolean(pendingDeleteTx)}
+        danger
+        title="Excluir lançamento?"
+        message={pendingDeleteTx
+          ? `"${pendingDeleteTx.description}" — ${pendingDeleteTx.type === 'income' ? '+' : '-'}R$ ${Math.abs(Number(pendingDeleteTx.amount) || 0).toFixed(2).replace('.', ',')}\n\nA exclusão é definitiva e some do painel de todo o grupo.`
+          : ''}
+        confirmLabel="Excluir"
+        busy={deletingTx}
+        onConfirm={handleConfirmDeleteTx}
+        onCancel={() => setPendingDeleteTx(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingRemoval)}
+        danger
+        title={pendingRemoval?.kind === 'recurring' ? 'Remover conta fixa?' : 'Remover lembrete?'}
+        message={pendingRemoval
+          ? `"${pendingRemoval.label}" será removido${pendingRemoval.kind === 'recurring' ? ' e não lança mais sozinho' : ''}. Os lançamentos que já entraram não são apagados.`
+          : ''}
+        confirmLabel="Remover"
+        onConfirm={handleConfirmRemoval}
+        onCancel={() => setPendingRemoval(null)}
+      />
+
       <AppFooter className="mt-6 pb-2" />
       <MobileBottomNav activePage={activePage} onNavigate={setActivePage} onQuickAdd={() => setQuickAddOpen(true)} />
     </main>
@@ -662,6 +768,7 @@ function SignInView() {
   const [mode, setMode] = useState('signin')
   const [authForm, setAuthForm] = useState({ email: '', password: '' })
   const [signupEmail, setSignupEmail] = useState(null)
+  const [resetting, setResetting] = useState(false)
   const { submitting, error, setError, signIn, signUp, resetPassword } = useFinance()
   const { t } = usePreferences()
 
@@ -728,12 +835,16 @@ function SignInView() {
       setError('Informe seu email para redefinir a senha.')
       return
     }
+    if (resetting) return
 
+    setResetting(true)
     try {
       await resetPassword(authForm.email)
       toast.success('Enviamos um link para redefinir sua senha.')
     } catch (resetError) {
       setError(resetError.message)
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -811,9 +922,10 @@ function SignInView() {
             <button
               type="button"
               onClick={handlePasswordReset}
-              className="text-sm text-slate-300 underline-offset-2 transition hover:text-cyan-300 hover:underline"
+              disabled={resetting}
+              className="text-sm text-slate-300 underline-offset-2 transition hover:text-cyan-300 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {t('forgotPassword')}
+              {resetting ? 'Enviando...' : t('forgotPassword')}
             </button>
           )}
         </div>

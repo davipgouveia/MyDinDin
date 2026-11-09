@@ -68,6 +68,8 @@ export function useRecurringAutoPost({
       if (payment.autoPost !== true) return false
       const dueISO = String(payment.nextDueDate || payment.startDate || '').slice(0, 10)
       if (!dueISO || dueISO > todayISO) return false
+      const endISO = payment.endDate ? String(payment.endDate).slice(0, 10) : null
+      if (endISO && dueISO > endISO) return false
       return !processedRef.current.has(`${payment.id}:${dueISO}`)
     })
 
@@ -80,9 +82,10 @@ export function useRecurringAutoPost({
 
       for (const payment of duePayments) {
         let dueISO = String(payment.nextDueDate || payment.startDate).slice(0, 10)
+        const endISO = payment.endDate ? String(payment.endDate).slice(0, 10) : null
         let cycles = 0
 
-        while (dueISO <= todayISO && cycles < MAX_CYCLES_PER_PAYMENT) {
+        while (dueISO <= todayISO && (!endISO || dueISO <= endISO) && cycles < MAX_CYCLES_PER_PAYMENT) {
           processedRef.current.add(`${payment.id}:${dueISO}`)
 
           const amount = Math.abs(Number(payment.amount) || 0)

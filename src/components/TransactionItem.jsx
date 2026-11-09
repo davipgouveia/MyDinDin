@@ -2,6 +2,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { ArrowDownCircle, ArrowUpCircle, MessageCircle, Send, Trash2 } from 'lucide-react'
 import { formatCurrency, formatDate } from '../../shared/format.js'
+import { toast } from '../hooks/useToast'
+
+const PAYMENT_METHOD_LABELS = {
+  dinheiro: 'Dinheiro',
+  credito: 'Crédito',
+  debito: 'Débito',
+  pix: 'PIX',
+  transferencia: 'Transferência',
+}
 
 export default function TransactionItem({
   transaction,
@@ -23,8 +32,8 @@ export default function TransactionItem({
       await onAddComment(transaction.id, newComment)
       setNewComment('')
       setCommentsOpen(true)
-    } catch {
-      // Erros exibidos via toast no chamador.
+    } catch (commentError) {
+      toast.error(`Não consegui salvar o comentário: ${commentError.message}`)
     }
   }
 
@@ -49,7 +58,11 @@ export default function TransactionItem({
               {transaction.category} • {transaction.owner} • {formatDate(transaction.date)}
               {transaction.dueDate ? ` • vence ${formatDate(transaction.dueDate)}` : ''}
               {transaction.dueDate ? ` • ${isPaid ? 'pago' : 'em aberto'}` : ''}
+              {transaction.paymentMethod ? ` • ${PAYMENT_METHOD_LABELS[transaction.paymentMethod] || transaction.paymentMethod}` : ''}
             </p>
+            {transaction.notes ? (
+              <p className="mt-0.5 break-words text-xs italic text-slate-500">{transaction.notes}</p>
+            ) : null}
           </div>
         </div>
 

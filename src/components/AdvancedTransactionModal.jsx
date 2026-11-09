@@ -28,6 +28,7 @@ export function AdvancedTransactionModal({
   const { getAllCategories } = useTransactionCategory()
   const categories = getAllCategories(transactionType)
   const isIncome = transactionType === 'income'
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -74,7 +75,9 @@ export function AdvancedTransactionModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (submitting) return
 
+    setSubmitting(true)
     try {
       await Promise.resolve(onSubmit(formData))
       setFormData({
@@ -93,6 +96,8 @@ export function AdvancedTransactionModal({
       onClose()
     } catch {
       // O erro ja e tratado no contexto/toast; evita promise rejeitada sem tratamento.
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -322,10 +327,11 @@ export function AdvancedTransactionModal({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 py-2 text-sm font-medium text-white hover:from-cyan-600 hover:to-blue-600"
+                disabled={submitting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 py-2 text-sm font-medium text-white hover:from-cyan-600 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus size={16} />
-                Adicionar
+                {submitting ? 'Salvando...' : 'Adicionar'}
               </motion.button>
             </div>
           </motion.form>

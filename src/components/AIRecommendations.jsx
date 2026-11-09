@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Lightbulb, TrendingUp, AlertTriangle, CheckCircle, Info, Trash2 } from 'lucide-react'
 import { useFinancialBudget } from '../hooks/useFinancialAI'
 import { formatCurrency } from '../utils/format'
+import { ConfirmDialog } from './ConfirmDialog'
+import { toast } from '../hooks/useToast'
 
-export function AIRecommendationsPanel({ recommendations = [], insights = {}, onDismiss = () => {} }) {
+export function AIRecommendationsPanel({ recommendations = [], insights = {}, onDismiss = () => {}, onAction = () => {} }) {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -128,6 +131,8 @@ export function AIRecommendationsPanel({ recommendations = [], insights = {}, on
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={() => onAction(rec)}
                   className="mt-2 inline-block rounded-md bg-white/10 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-white/20"
                 >
                   {rec.action}
@@ -152,6 +157,22 @@ export function AIRecommendationsPanel({ recommendations = [], insights = {}, on
 
 export function BudgetAlertPanel({ budgets = [] }) {
   const { removeBudget } = useFinancialBudget()
+  const [pendingRemoval, setPendingRemoval] = useState(null)
+  const [removing, setRemoving] = useState(false)
+
+  const handleConfirmRemoval = async () => {
+    if (!pendingRemoval) return
+
+    setRemoving(true)
+    try {
+      await removeBudget(pendingRemoval.id)
+      setPendingRemoval(null)
+    } catch (removeError) {
+      toast.error(`Não consegui remover o orçamento: ${removeError.message}`)
+    } finally {
+      setRemoving(false)
+    }
+  }
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -217,7 +238,7 @@ export function BudgetAlertPanel({ budgets = [] }) {
               type="button"
               title="Excluir orçamento"
               className="ml-2 rounded-full p-1 text-red-400 hover:bg-red-900/20 hover:text-red-300 transition"
-              onClick={() => removeBudget(budget.id)}
+              onClick={() => setPendingRemoval(budget)}
             >
               <Trash2 size={16} />
             </button>
@@ -242,6 +263,17 @@ export function BudgetAlertPanel({ budgets = [] }) {
           </div>
         </motion.div>
       ))}
+
+      <ConfirmDialog
+        open={Boolean(pendingRemoval)}
+        danger
+        title="Excluir orçamento?"
+        message={pendingRemoval ? `O orçamento de "${pendingRemoval.category}" será excluído. Os lançamentos não são apagados.` : ''}
+        confirmLabel="Excluir"
+        busy={removing}
+        onConfirm={handleConfirmRemoval}
+        onCancel={() => setPendingRemoval(null)}
+      />
     </motion.div>
   )
 }

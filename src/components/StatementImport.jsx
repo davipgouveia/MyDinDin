@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FileUp, Upload } from 'lucide-react'
 import { dedupeKey, parseStatementText } from '../lib/statementImport'
+import { extractPdfText } from '../lib/pdfStatement'
 import { suggestCategory, UNCATEGORIZED_LABEL } from '../lib/quickParse'
 import { formatCurrency } from '../utils/format'
 import { formatDateBR } from '../utils/date'
@@ -12,6 +13,7 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
   const [rows, setRows] = useState([])
   const [fileLabel, setFileLabel] = useState('')
   const [importing, setImporting] = useState(false)
+  const [reading, setReading] = useState(false)
   const fileInputRef = useRef(null)
 
   const existingKeys = useMemo(
@@ -34,11 +36,29 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
     if (!file) return
 
     try {
-      const text = await file.text()
+      const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf'
+
+      let text
+      if (isPdf) {
+        setReading(true)
+        try {
+          text = await extractPdfText(file)
+        } finally {
+          setReading(false)
+        }
+
+        if (!text.trim()) {
+          toast.error('Não consegui ler texto nesse PDF — ele pode ser uma imagem escaneada. Nesse caso, exporte o CSV ou OFX pelo app do banco.')
+          return
+        }
+      } else {
+        text = await file.text()
+      }
+
       const { rows: parsedRows, format } = parseStatementText(text, file.name)
 
       if (parsedRows.length === 0) {
-        toast.error('Não reconheci lançamentos nesse arquivo. Tente o CSV ou OFX exportado do banco ou da fatura.')
+        toast.error('Não reconheci lançamentos nesse arquivo. Tente o CSV, OFX ou PDF exportado do banco ou da fatura.')
         return
       }
 
@@ -109,22 +129,23 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
           </span>
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Ficar em dia</h2>
-            <p className="text-xs text-slate-400">Importe o extrato da conta ou a fatura do cartão (CSV ou OFX) e o mês se reconstrói sozinho.</p>
+            <p className="text-xs text-slate-400">Importe o extrato da conta ou a fatura do cartão (CSV, OFX ou PDF) e o mês se reconstrói sozinho.</p>
           </div>
         </div>
 
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-2 rounded-xl bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+          disabled={reading}
+          className="flex items-center gap-2 rounded-xl bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
         >
           <Upload size={14} />
-          Importar arquivo
+          {reading ? 'Lendo arquivo...' : 'Importar arquivo'}
         </button>
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv,.ofx,.txt,text/csv"
+          accept=".csv,.ofx,.txt,.pdf,text/csv,application/pdf"
           className="hidden"
           onChange={handleFile}
         />

@@ -22,6 +22,7 @@ import { QuickCapture } from './components/QuickCapture'
 import { PendingClassification } from './components/PendingClassification'
 import { StatementImport } from './components/StatementImport'
 import { WeeklySummary } from './components/WeeklySummary'
+import { FirstStep } from './components/FirstStep'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { RecurringPaymentForm } from './components/RecurringPaymentForm'
 import { buildLearnedCategoryMap, UNCATEGORIZED_LABEL } from './lib/quickParse'
@@ -351,6 +352,17 @@ function DashboardContent() {
           className="min-h-[30rem]"
         >
       {activePage === 'dashboard' && (
+        transactions.length === 0 ? (
+          <FirstStep
+            transactions={transactions}
+            categories={allCategoryNames}
+            learnedMap={learnedCategoryMap}
+            onImport={(items) => addTransactionsBatch(items, { source: 'import' })}
+            onQuickSubmit={handleQuickSubmit}
+            panelClass={panelClass}
+            isLight={isLight}
+          />
+        ) : (
         <section className="grid gap-4">
           <QuickCapture
             categories={allCategoryNames}
@@ -446,7 +458,7 @@ function DashboardContent() {
           </section>
         </section>
         </section>
-      )}
+        ))}
 
       {activePage === 'stats' && (
         <section className="space-y-4">

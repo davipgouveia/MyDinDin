@@ -230,9 +230,135 @@ function parseCsv(text, fileName = '') {
   return rows
 }
 
+// --- PDF (texto extraído pelo pdf.js; entra linha a linha) ---
+
+const PT_MONTHS = {
+  jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06',
+  jul: '07', ago: '08', set: '09', out: '10', nov: '11', dez: '12',
+}
+
+// Linhas de resumo/cabeçalho que têm data e valor mas NÃO são lançamentos.
+const PDF_SKIP_SNIPPETS = [
+  'saldo anterior', 'saldo final', 'saldo do dia', 'saldo atual', 'saldo em',
+  'total da fatura', 'total geral', 'subtotal', 'pagamento minimo',
+  'limite de credito', 'limite total', 'limite disponivel', 'credito rotativo',
+  'melhor data', 'data historico', 'demonstrativo', 'central de atendimento',
+  'juros rotativo', 'encargos financeiros', 'total a pagar',
+]
+
+const PDF_INCOME_HINTS = [
+  'salario', 'pix recebido', 'transferencia recebida', 'ted recebida',
+  'deposito', 'credito', 'rendimento', 'reembolso', 'estorno',
+  'pagamento recebido', 'resgate', 'proventos', 'bonificacao',
+]
+
+// Um valor monetário brasileiro: 1.234,56 / 45,90 / -150,00 / (200,00),
+// com R$ opcional e sufixo D (débito) ou C (crédito) usado por alguns bancos.
+const MONEY_TOKEN_RE = /\(?-?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2}\)?\s?[DC]?\b|\(?-?\s*(?:R\$\s*)?\d+,\d{2}\)?\s?[DC]?\b/g
+
+function parsePdf(text, fileName = '') {
+  const lines = String(text || '').split(/\r?\n/).map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  if (lines.length === 0) return []
+
+  const headText = normalizeText(lines.slice(0, 40).join(' '))
+  const isCardStatement = headText.includes('fatura') || /fatura|nubank|invoice|cartao|card/.test(normalizeText(fileName))
+
+  // Data de referência do documento (ex.: vencimento da fatura) pra
+  // inferir o ano das linhas que só trazem dia/mês.
+  let ref = null
+  for (const line of lines.slice(0, 40)) {
+    const match = line.match(/(\d{1,2})[/\-.](\d{1,2})[/\-.](20\d{2})/)
+    if (match) {
+      ref = { month: Number(match[2]), year: Number(match[3]) }
+      break
+    }
+  }
+  const inferYear = (month) => {
+    if (ref) return month <= ref.month ? ref.year : ref.year - 1
+    const now = new Date()
+    return month > now.getMonth() + 1 ? now.getFullYear() - 1 : now.getFullYear()
+  }
+
+  const findDate = (line) => {
+    let match = line.match(/(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/)
+    if (match) {
+      const iso = parseStatementDate(match[0])
+      return iso ? { iso, end: match.index + match[0].length } : null
+    }
+    match = line.match(/\b(\d{1,2})[/\-.](\d{1,2})\b/)
+    if (match) {
+      const month = match[2].padStart(2, '0')
+      const day = match[1].padStart(2, '0')
+      return { iso: `${inferYear(Number(match[2]))}-${month}-${day}`, end: match.index + match[0].length }
+    }
+    match = line.match(/\b(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b/i)
+    if (match) {
+      const month = PT_MONTHS[match[2].toLowerCase()]
+      const day = match[1].padStart(2, '0')
+      return { iso: `${inferYear(Number(month))}-${month}-${day}`, end: match.index + match[0].length }
+    }
+    return null
+  }
+
+  const rows = []
+  for (const line of lines) {
+    const normalizedLine = normalizeText(line)
+    if (PDF_SKIP_SNIPPETS.some((snippet) => normalizedLine.includes(snippet))) continue
+
+    const date = findDate(line)
+    if (!date) continue
+
+    const tokens = [...line.matchAll(MONEY_TOKEN_RE)]
+      .map((match) => ({ raw: match[0], index: match.index }))
+      .filter((token) => token.index >= date.end - 1)
+    if (tokens.length === 0) continue
+
+    // O valor do lançamento é o primeiro depois da data; quando a linha
+    // também traz o saldo corrida, ele vem depois e é ignorado.
+    const token = tokens[0]
+    const suffix = /([DC])\s*$/.test(token.raw.trim()) ? token.raw.trim().slice(-1) : null
+    const value = parseBRNumber(token.raw.replace(/\s?[DC]\s*$/, ''))
+    if (!Number.isFinite(value) || value === 0) continue
+
+    let type
+    if (suffix === 'D') type = 'expense'
+    else if (suffix === 'C') type = 'income'
+    else if (value < 0) type = isCardStatement ? 'income' : 'expense'
+    else if (isCardStatement) type = 'expense'
+    else {
+      const descriptionHint = normalizeText(line)
+      type = PDF_INCOME_HINTS.some((hint) => descriptionHint.includes(hint)) ? 'income' : 'expense'
+    }
+
+    const description = line
+      .slice(0, token.index)
+      .replace(/(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/, ' ')
+      .replace(/\b(\d{1,2})[/\-.](\d{1,2})\b/, ' ')
+      .replace(/\b(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b/i, ' ')
+      .concat(' ', line.slice(token.index + token.raw.length).replace(MONEY_TOKEN_RE, ' '))
+      .replace(/r\$/gi, ' ')
+      .replace(/^[-\s•|·]+|[-\s•|·]+$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    if (description.length < 2) continue
+
+    rows.push({ dateISO: date.iso, description, amount: Math.abs(value), type })
+  }
+
+  return rows
+}
+
 export function parseStatementText(text, fileName = '') {
   const content = String(text || '')
   if (!content.trim()) return { rows: [], format: null }
+
+  if (/\.pdf$/i.test(fileName)) {
+    return {
+      rows: parsePdf(content, fileName).sort((a, b) => a.dateISO.localeCompare(b.dateISO)),
+      format: 'PDF',
+    }
+  }
 
   const isOfx = /<OFX/i.test(content) || /<STMTTRN>/i.test(content) || /\.ofx$/i.test(fileName)
   const rows = isOfx ? parseOfx(content) : parseCsv(content, fileName)

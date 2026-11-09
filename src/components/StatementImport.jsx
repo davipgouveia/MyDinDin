@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileUp, Upload } from 'lucide-react'
+import { FileUp, Upload, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { dedupeKey, parseStatementText } from '../lib/statementImport'
 import { extractPdfText } from '../lib/pdfStatement'
 import { suggestCategory, UNCATEGORIZED_LABEL } from '../lib/quickParse'
@@ -14,6 +14,11 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
   const [fileLabel, setFileLabel] = useState('')
   const [importing, setImporting] = useState(false)
   const [reading, setReading] = useState(false)
+  // Retorno visual PERSISTENTE dentro do cartão: o toast some em 3s e a
+  // pessoa fica com a sensação de que "não aconteceu nada". Aqui o status
+  // de cada etapa (lendo, extraindo, encontrou, falhou e por quê) fica
+  // escrito até a próxima ação.
+  const [status, setStatus] = useState(null)
   const fileInputRef = useRef(null)
 
   const existingKeys = useMemo(
@@ -35,12 +40,15 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
     event.target.value = ''
     if (!file) return
 
+    setStatus({ kind: 'reading', text: `Lendo ${file.name}...` })
+
     try {
       const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf'
 
       let text
       if (isPdf) {
         setReading(true)
+        setStatus({ kind: 'reading', text: `Extraindo o texto do PDF ${file.name}...` })
         try {
           text = await extractPdfText(file)
         } finally {
@@ -48,16 +56,21 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
         }
 
         if (!text.trim()) {
-          toast.error('Não consegui ler texto nesse PDF — ele pode ser uma imagem escaneada. Nesse caso, exporte o CSV ou OFX pelo app do banco.')
+          const message = 'Não consegui ler texto nesse PDF — ele pode ser uma imagem escaneada. Nesse caso, exporte o CSV ou OFX pelo app do banco.'
+          setStatus({ kind: 'error', text: message })
+          toast.error(message)
           return
         }
       } else {
         text = await file.text()
       }
 
+      setStatus({ kind: 'reading', text: `Procurando lançamentos em ${file.name}...` })
       const { rows: parsedRows, format } = parseStatementText(text, file.name)
 
       if (parsedRows.length === 0) {
+        const message = `Li o arquivo ${file.name}, mas não reconheci nenhum lançamento nele. Se for PDF de outro banco, me avise qual é que eu ajusto o leitor.`
+        setStatus({ kind: 'error', text: message })
         toast.error('Não reconheci lançamentos nesse arquivo. Tente o CSV, OFX ou PDF exportado do banco ou da fatura.')
         return
       }
@@ -81,8 +94,10 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
       setRows(prepared)
       setFileLabel(`${file.name} (${format})`)
       setOpen(true)
+      setStatus({ kind: 'ok', text: `${prepared.length} lançamentos encontrados em ${file.name}. Confira a lista abaixo e toque em Importar.` })
       toast.success(`${prepared.length} lançamentos lidos do arquivo. Confira e importe os que quiser.`)
     } catch (fileError) {
+      setStatus({ kind: 'error', text: `Erro ao ler o arquivo: ${fileError.message}` })
       toast.error(`Erro ao ler o arquivo: ${fileError.message}`)
     }
   }
@@ -101,10 +116,12 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
         category: row.category,
       })))
       toast.success(`${count} lançamentos importados. O app está em dia!`)
+      setStatus({ kind: 'ok', text: `${count} lançamentos importados de ${fileLabel}. Já estão no seu painel.` })
       setRows([])
       setFileLabel('')
       setOpen(false)
     } catch (importError) {
+      setStatus({ kind: 'error', text: `Erro ao importar: ${importError.message}` })
       toast.error(`Erro ao importar: ${importError.message}`)
     } finally {
       setImporting(false)
@@ -150,6 +167,24 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
           onChange={handleFile}
         />
       </div>
+
+      {status && (
+        <div
+          role="status"
+          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs leading-relaxed ${
+            status.kind === 'error'
+              ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+              : status.kind === 'ok'
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
+          }`}
+        >
+          {status.kind === 'reading' && <Loader2 size={14} className="mt-0.5 shrink-0 animate-spin" />}
+          {status.kind === 'ok' && <CheckCircle2 size={14} className="mt-0.5 shrink-0" />}
+          {status.kind === 'error' && <AlertTriangle size={14} className="mt-0.5 shrink-0" />}
+          <span>{status.text}</span>
+        </div>
+      )}
 
       {open && rows.length > 0 && (
         <div className="mt-4">

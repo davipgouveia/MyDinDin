@@ -246,11 +246,10 @@ const PDF_SKIP_SNIPPETS = [
   'juros rotativo', 'encargos financeiros', 'total a pagar',
 ]
 
-const PDF_INCOME_HINTS = [
-  'salario', 'pix recebido', 'transferencia recebida', 'ted recebida',
-  'deposito', 'credito', 'rendimento', 'reembolso', 'estorno',
-  'pagamento recebido', 'resgate', 'proventos', 'bonificacao',
-]
+// (A classificação entrada/saída no extrato segue o SINAL do valor e os
+// sufixos D/C — ver parsePdf. Sem dica de descrição: no extrato do Itaú,
+// valor positivo sem sinal é crédito, e dicas por palavra quebravam
+// casos reais como "REND PAGO APLIC AUT MAIS".)
 
 // Um valor monetário brasileiro: 1.234,56 / 45,90 / -150,00 / (200,00),
 // com R$ opcional e sufixo D (débito) ou C (crédito) usado por alguns bancos.
@@ -320,15 +319,15 @@ function parsePdf(text, fileName = '') {
     const value = parseBRNumber(token.raw.replace(/\s?[DC]\s*$/, ''))
     if (!Number.isFinite(value) || value === 0) continue
 
+    // Convenção dos extratos (Itaú, Nubank conta etc.): o sinal manda —
+    // negativo (ou sufixo D) = saída; positivo (ou sufixo C) = entrada.
+    // Na fatura é o contrário: positivo = compra (saída) e o pagamento
+    // vem negativo (entrada).
     let type
     if (suffix === 'D') type = 'expense'
     else if (suffix === 'C') type = 'income'
     else if (value < 0) type = isCardStatement ? 'income' : 'expense'
-    else if (isCardStatement) type = 'expense'
-    else {
-      const descriptionHint = normalizeText(line)
-      type = PDF_INCOME_HINTS.some((hint) => descriptionHint.includes(hint)) ? 'income' : 'expense'
-    }
+    else type = isCardStatement ? 'expense' : 'income'
 
     const description = line
       .slice(0, token.index)

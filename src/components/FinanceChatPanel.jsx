@@ -31,7 +31,8 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
   const { addBudget } = useFinancialBudget()
   const { addCustomCategory } = require('../context/TransactionCategoryContext').useTransactionCategory()
 
-  // Remove persistência localStorage, pois agora está no contexto global
+  // O histórico vive no ChatContext, que persiste no aparelho
+  // (localStorage). Aqui só semeamos a saudação quando está vazio.
   useEffect(() => {
     if (!messages.length) {
       setMessages([createWelcomeMessage(t)])

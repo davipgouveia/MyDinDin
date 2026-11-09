@@ -834,6 +834,41 @@ export function FinanceProvider({ children }) {
     await loadTransactions(profile.group_id)
   }
 
+  // Classificação em lote: a fila agrupada classifica todos os
+  // lançamentos de uma mesma descrição de uma vez. Respeita a mesma
+  // regra de permissão da classificação individual e recarrega uma
+  // única vez no fim.
+  const updateTransactionsCategory = async (transactionIds, categoryName) => {
+    if (!user || !profile || !isSupabaseConfigured || !supabase) return 0
+
+    const normalizedCategory = (categoryName || '').trim()
+    if (!normalizedCategory) {
+      throw new Error('Escolha uma categoria.')
+    }
+
+    const editableIds = (transactionIds || []).filter((id) => {
+      const currentTx = transactions.find((item) => item.id === id)
+      return currentTx && (profile.role === 'owner' || currentTx.profileId === user.id)
+    })
+    if (editableIds.length === 0) {
+      throw new Error('Voce nao tem permissao para classificar estas transacoes.')
+    }
+
+    setError(null)
+
+    const idsByName = await resolveCategoryIds([normalizedCategory])
+
+    const { error: updateError } = await supabase
+      .from('transactions')
+      .update({ category_id: idsByName.get(normalizedCategory) })
+      .in('id', editableIds)
+
+    if (updateError) throw updateError
+
+    await loadTransactions(profile.group_id)
+    return editableIds.length
+  }
+
   const users = useMemo(() => {
     if (members.length === 0) return ['Todos']
     return ['Todos', ...members.map((member) => member.full_name || 'Membro')]
@@ -1162,6 +1197,7 @@ export function FinanceProvider({ children }) {
     addTransaction,
     addTransactionsBatch,
     updateTransactionCategory,
+    updateTransactionsCategory,
     deleteTransaction,
     addTransactionComment,
     createSharedBudget,

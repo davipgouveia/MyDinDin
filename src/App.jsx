@@ -86,6 +86,7 @@ function DashboardContent() {
     transactions,
     addTransactionsBatch,
     updateTransactionCategory,
+    updateTransactionsCategory,
     visibleTransactions,
     transactionComments,
     activityLogs,
@@ -119,6 +120,10 @@ function DashboardContent() {
     : 'border-slate-800/80 bg-slate-950/75 text-white shadow-[0_14px_34px_rgba(2,6,23,0.35)]'
   const panelClass = isLight ? 'border-slate-200 bg-white/90 text-slate-900' : 'border-slate-800 bg-slate-950/70 text-white'
   const panelSoftClass = isLight ? 'border-slate-200 bg-white/80 text-slate-900' : 'border-slate-800 bg-slate-900/50 text-white'
+
+  // Sinal da pós-importação guiada: cada import concluído incrementa e
+  // a fila de classificação rola pra vista (é o próximo passo natural).
+  const [classifyFocus, setClassifyFocus] = useState(0)
 
   const learnedCategoryMap = useMemo(() => buildLearnedCategoryMap(transactions), [transactions])
   const allCategoryNames = useMemo(() => {
@@ -451,8 +456,9 @@ function DashboardContent() {
             transactions={pendingClassification}
             categories={allCategoryNames}
             learnedMap={learnedCategoryMap}
-            onClassify={updateTransactionCategory}
+            onClassify={updateTransactionsCategory}
             panelClass={panelClass}
+            focusSignal={classifyFocus}
           />
 
           <StatementImport
@@ -460,6 +466,7 @@ function DashboardContent() {
             categories={allCategoryNames}
             learnedMap={learnedCategoryMap}
             onImport={(items) => addTransactionsBatch(items, { source: 'import' })}
+            onImported={() => setClassifyFocus((current) => current + 1)}
             panelClass={panelClass}
           />
 

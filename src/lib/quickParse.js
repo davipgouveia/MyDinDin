@@ -23,18 +23,24 @@ const tokenize = (value) =>
     .filter((token) => token.length >= 3 && !STOPWORDS.has(token))
 
 // Mapa de palavras-chave -> nome de categoria (comparado sem acento).
+// `types` restringe a regra a entradas ou saídas: sem isso, uma despesa
+// com "pagamento" caía em Salário e um rendimento caía em despesa. As
+// palavras cobrem também o vocabulário dos extratos bancários (tarifas,
+// códigos abreviados e redes conhecidas), que é de onde vem a maioria
+// dos lançamentos "A classificar".
 const KEYWORD_CATEGORIES = [
-  { category: 'Alimentação', words: ['mercado', 'supermercado', 'feira', 'padaria', 'restaurante', 'lanche', 'lanches', 'pizza', 'pizzaria', 'ifood', 'rappi', 'comida', 'acougue', 'hortifruti', 'sorvete', 'hamburguer', 'sushi', 'churrasco', 'marmita'] },
-  { category: 'Transporte', words: ['uber', 'taxi', 'gasolina', 'combustivel', 'etanol', 'diesel', 'estacionamento', 'pedagio', 'onibus', 'metro', 'passagem', '99', 'moto', 'carro', 'oficina', 'pneu'] },
-  { category: 'Saúde', words: ['farmacia', 'remedio', 'remedios', 'medico', 'consulta', 'dentista', 'exame', 'exames', 'hospital', 'clinica', 'academia', 'plano de saude', 'terapia', 'psicologo'] },
-  { category: 'Educação', words: ['curso', 'cursos', 'livro', 'livros', 'faculdade', 'escola', 'udemy', 'alura', 'aula', 'aulas', 'mensalidade escolar', 'ingles'] },
-  { category: 'Lazer', words: ['netflix', 'spotify', 'cinema', 'jogo', 'jogos', 'game', 'games', 'show', 'viagem', 'hotel', 'streaming', 'disney', 'hbo', 'prime video', 'youtube', 'passeio', 'praia', 'bar', 'cerveja'] },
-  { category: 'Contas & Serviços', words: ['luz', 'energia', 'agua', 'internet', 'aluguel', 'condominio', 'telefone', 'celular', 'iptu', 'seguro', 'assinatura', 'boleto', 'conta', 'gas', 'vivo', 'claro', 'tim', 'oi', 'enel', 'sabesp'] },
-  { category: 'Shopping', words: ['roupa', 'roupas', 'sapato', 'tenis', 'amazon', 'shopee', 'shein', 'loja', 'lojas', 'presente', 'mercado livre', 'magazine', 'casas bahia', 'perfume', 'maquiagem'] },
-  { category: 'Salário', words: ['salario', 'pagamento salario', 'holerite', 'ordenado'] },
-  { category: 'Freelance', words: ['freela', 'freelance', 'projeto', 'cliente'] },
-  { category: 'Vendas', words: ['venda', 'vendas', 'vendi'] },
-  { category: 'Investimentos', words: ['dividendo', 'dividendos', 'rendimento', 'juros', 'investimento', 'tesouro', 'cdb'] },
+  { category: 'Alimentação', types: ['expense'], words: ['mercado', 'supermercado', 'mercadinho', 'feira', 'padaria', 'restaurante', 'lanche', 'lanches', 'pizza', 'pizzaria', 'ifood', 'rappi', 'ubereats', 'aiqfome', 'delivery', 'comida', 'acougue', 'hortifruti', 'sorvete', 'hamburguer', 'sushi', 'churrasco', 'marmita', 'carrefour', 'atacadao', 'assai', 'sonda', 'hirota', 'mambo', 'quitanda', 'acai', 'pastel', 'cafeteria', 'starbucks', 'churrascaria'] },
+  { category: 'Transporte', types: ['expense'], words: ['uber', 'taxi', 'gasolina', 'combustivel', 'etanol', 'diesel', 'estacionamento', 'pedagio', 'onibus', 'metro', 'passagem', '99', '99app', 'moto', 'carro', 'oficina', 'pneu', 'posto', 'ipiranga', 'shell', 'raizen', 'cabify', 'indrive', 'veloe', 'conectcar', 'sem parar', 'latam', 'azul linhas', 'rodoviaria'] },
+  { category: 'Saúde', types: ['expense'], words: ['farmacia', 'drogaria', 'drogasil', 'raia', 'pacheco', 'ultrafarma', 'panvel', 'pague menos', 'remedio', 'remedios', 'medico', 'consulta', 'dentista', 'odonto', 'exame', 'exames', 'hospital', 'clinica', 'laboratorio', 'vacina', 'academia', 'smartfit', 'selfit', 'bluefit', 'plano de saude', 'terapia', 'psicologo', 'otica', 'oculos', 'veterinario'] },
+  { category: 'Educação', types: ['expense'], words: ['curso', 'cursos', 'livro', 'livros', 'faculdade', 'escola', 'udemy', 'alura', 'coursera', 'rocketseat', 'aula', 'aulas', 'mensalidade escolar', 'mensalidade', 'papelaria', 'ingles', 'kindle'] },
+  { category: 'Lazer', types: ['expense'], words: ['netflix', 'spotify', 'deezer', 'globoplay', 'paramount', 'crunchyroll', 'cinema', 'jogo', 'jogos', 'game', 'games', 'steam', 'playstation', 'xbox', 'nintendo', 'show', 'viagem', 'hotel', 'airbnb', 'booking', 'decolar', 'streaming', 'disney', 'hbo', 'prime video', 'youtube', 'ingresso', 'ingressos', 'sympla', 'eventim', 'teatro', 'passeio', 'praia', 'bar', 'cerveja', 'boliche'] },
+  { category: 'Contas & Serviços', types: ['expense'], words: ['luz', 'energia', 'agua', 'internet', 'aluguel', 'condominio', 'telefone', 'celular', 'iptu', 'seguro', 'assinatura', 'boleto', 'conta', 'gas', 'vivo', 'claro', 'tim', 'oi', 'enel', 'sabesp', 'tarifa', 'tar', 'iof', 'anuidade', 'pacote de servicos', 'manutencao de conta', 'cobranca', 'ted', 'doc', 'fatura', 'parcela', 'financiamento', 'emprestimo', 'consorcio', 'cartao', 'saque', 'darf', 'imposto', 'taxa', 'multa', 'correios', 'cartorio', 'previdencia', 'juros', 'encargos'] },
+  { category: 'Shopping', types: ['expense'], words: ['roupa', 'roupas', 'sapato', 'tenis', 'amazon', 'shopee', 'shein', 'loja', 'lojas', 'presente', 'mercado livre', 'mercadolivre', 'magazine', 'magalu', 'casas bahia', 'renner', 'riachuelo', 'zara', 'decathlon', 'leroy', 'kalunga', 'samsung', 'xiaomi', 'nike', 'adidas', 'centauro', 'netshoes', 'perfume', 'maquiagem'] },
+  { category: 'Salário', types: ['income'], words: ['salario', 'pagamento salario', 'holerite', 'ordenado', 'folha de pagamento', 'adiantamento salarial'] },
+  { category: 'Freelance', types: ['income'], words: ['freela', 'freelance', 'projeto'] },
+  { category: 'Vendas', types: ['income'], words: ['venda', 'vendas', 'vendi'] },
+  { category: 'Investimentos', types: ['income'], words: ['dividendo', 'dividendos', 'rendimento', 'rend', 'aplic', 'resgate', 'proventos', 'juros', 'investimento', 'tesouro', 'cdb', 'jcp'] },
+  { category: 'Outros', types: ['income'], words: ['cashback', 'estorno', 'reembolso', 'devolucao'] },
 ]
 
 const INCOME_HINTS = [
@@ -81,15 +87,36 @@ export function suggestCategory(description, { categories = [], learnedMap = nul
     if (best) return best[0]
   }
 
-  // 2) Palavras-chave conhecidas
-  for (const entry of KEYWORD_CATEGORIES) {
+  // 2) Palavras-chave conhecidas (respeitando o tipo do lançamento).
+  // Duas passagens: primeiro as FRASES ("mercado livre" é Shopping e
+  // vence o "mercado" solto da Alimentação), depois as palavras soltas.
+  // Além do token exato, aceita o token que COMEÇA com a palavra-chave
+  // (plurais e grafias grudadas do extrato: "drogarias", "tarifas",
+  // "mercados") quando a palavra tem 5+ letras.
+  const entries = KEYWORD_CATEGORIES.filter(
+    (entry) => !entry.types || entry.types.includes(type),
+  )
+
+  for (const entry of entries) {
     const canonical = available.get(normalizeText(entry.category))
     if (!canonical) continue
     const hit = entry.words.some((word) => {
       const normalizedWord = normalizeText(word)
-      return normalizedWord.includes(' ')
-        ? text.includes(normalizedWord)
-        : tokens.includes(normalizedWord)
+      return normalizedWord.includes(' ') && text.includes(normalizedWord)
+    })
+    if (hit) return canonical
+  }
+
+  for (const entry of entries) {
+    const canonical = available.get(normalizeText(entry.category))
+    if (!canonical) continue
+    const hit = entry.words.some((word) => {
+      const normalizedWord = normalizeText(word)
+      if (normalizedWord.includes(' ')) return false
+      return tokens.some((token) => (
+        token === normalizedWord
+        || (normalizedWord.length >= 5 && token.startsWith(normalizedWord))
+      ))
     })
     if (hit) return canonical
   }

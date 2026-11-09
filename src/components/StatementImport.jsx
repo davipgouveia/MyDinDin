@@ -8,7 +8,7 @@ import { formatCurrency } from '../utils/format'
 import { formatDateBR } from '../utils/date'
 import { toast } from '../hooks/useToast'
 
-export function StatementImport({ transactions = [], categories = [], learnedMap = null, onImport, panelClass = '' }) {
+export function StatementImport({ transactions = [], categories = [], learnedMap = null, onImport, onImported, panelClass = '' }) {
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState([])
   const [fileLabel, setFileLabel] = useState('')
@@ -190,6 +190,9 @@ export function StatementImport({ transactions = [], categories = [], learnedMap
       setRows([])
       setFileLabel('')
       setOpen(false)
+      // Pós-importação guiada: o painel rola até a fila de classificação,
+      // que é o próximo passo pra deixar tudo organizado.
+      onImported?.()
     } catch (importError) {
       setStatus({ kind: 'error', text: `Erro ao importar: ${importError.message}` })
       toast.error(`Erro ao importar: ${importError.message}`)

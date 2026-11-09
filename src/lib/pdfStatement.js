@@ -4,18 +4,32 @@
 // PDFs escaneados (imagem, sem camada de texto) voltam vazios — quem
 // chama avisa e sugere exportar CSV/OFX pelo app do banco.
 
-export async function extractPdfText(file) {
-  const pdfjs = await import('pdfjs-dist')
-
-  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+// Carrega o pdf.js e abre o documento. Tenta primeiro a build atual; se
+// ela falhar (navegador de celular mais antigo, que não suporta alguns
+// recursos modernos de JS que a v6 exige), tenta a build "legacy", feita
+// pra navegadores antigos. Sem isso, o import simplesmente morria no
+// celular sem explicação.
+async function openPdf(data) {
+  try {
+    const pdfjs = await import('pdfjs-dist')
     pdfjs.GlobalWorkerOptions.workerSrc = new URL(
       'pdfjs-dist/build/pdf.worker.min.mjs',
       import.meta.url,
     ).toString()
+    return await pdfjs.getDocument({ data }).promise
+  } catch (firstError) {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+      import.meta.url,
+    ).toString()
+    return pdfjs.getDocument({ data }).promise
   }
+}
 
+export async function extractPdfText(file) {
   const data = await file.arrayBuffer()
-  const doc = await pdfjs.getDocument({ data }).promise
+  const doc = await openPdf(data)
 
   const lines = []
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {

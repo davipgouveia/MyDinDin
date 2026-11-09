@@ -26,7 +26,7 @@ export function QuickAddSheet({ open = false, onClose = () => {}, onSelectType =
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Novo lançamento</p>
                   <HelpHint text="Selecione se você quer registrar uma despesa ou uma receita. Depois, complete os detalhes no formulário." />
                 </div>
-                <h3 className="text-lg font-semibold text-white">Escolha o tipo</h3>
+                <h3 className="text-lg font-semibold text-slate-100">Escolha o tipo</h3>
               </div>
               <button
                 type="button"
@@ -42,7 +42,7 @@ export function QuickAddSheet({ open = false, onClose = () => {}, onSelectType =
               <button
                 type="button"
                 onClick={() => onSelectType('expense')}
-                className="flex flex-col items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-left text-white"
+                className="flex flex-col items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-left text-slate-100"
               >
                 <ArrowDownCircle className="text-red-300" />
                 <div>
@@ -54,7 +54,7 @@ export function QuickAddSheet({ open = false, onClose = () => {}, onSelectType =
               <button
                 type="button"
                 onClick={() => onSelectType('income')}
-                className="flex flex-col items-start gap-3 rounded-2xl border border-green-500/20 bg-green-500/10 p-4 text-left text-white"
+                className="flex flex-col items-start gap-3 rounded-2xl border border-green-500/20 bg-green-500/10 p-4 text-left text-slate-100"
               >
                 <ArrowUpCircle className="text-green-300" />
                 <div>

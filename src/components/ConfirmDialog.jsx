@@ -34,7 +34,7 @@ export function ConfirmDialog({
                 <span className={`rounded-full p-2 ${danger ? 'bg-red-500/10 text-red-300' : 'bg-cyan-500/10 text-cyan-300'}`}>
                   <AlertTriangle size={16} />
                 </span>
-                <h3 className="text-base font-semibold text-white">{title}</h3>
+                <h3 className="text-base font-semibold text-slate-100">{title}</h3>
               </div>
               <button
                 type="button"

@@ -167,11 +167,6 @@ html[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
 }
 
 @layer components {
-  .card-gradient {
-    @apply rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-4 backdrop-blur-sm;
-    box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.05), 0 24px 64px rgb(2 6 23 / 0.22);
-  }
-
   .button-primary {
     @apply rounded-lg px-4 py-2 font-medium text-slate-950 transition-all duration-300 active:scale-95;
     background-image: linear-gradient(135deg, rgb(var(--accent-rgb) / 1), rgb(var(--accent-strong-rgb) / 1));
@@ -182,15 +177,97 @@ html[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
     @apply rounded-lg border border-slate-600 bg-slate-800/50 px-4 py-2 font-medium text-slate-300 transition-all duration-300 active:scale-95;
     border-color: rgb(var(--accent-rgb) / 0.18);
   }
+}
 
-  .input-field {
-    @apply w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-500 transition-all duration-300 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/20;
-  }
+/* ===== Tema claro: camada de retematizacao sistemica =====
+   O app nasceu dark-first e a maioria dos componentes usa classes
+   escuras fixas (bg-slate-900, text-slate-200...). Em vez de caçar
+   componente a componente, o tema claro remapeia os tokens escuros
+   mais comuns para equivalentes claros. Os seletores usam o token
+   exato da classe ([class~=...]) para não atingir variantes hover:. */
 
-  .text-gradient {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(90deg, rgb(var(--accent-soft-rgb) / 1), rgb(var(--accent-strong-rgb) / 1));
-  }
+/* Superficies escuras viram brancas/claras */
+html[data-theme='light'] :is(
+  [class~='bg-slate-950'], [class~='bg-slate-950/50'], [class~='bg-slate-950/60'],
+  [class~='bg-slate-950/70'], [class~='bg-slate-950/95'],
+  [class~='bg-slate-900'], [class~='bg-slate-900/50'], [class~='bg-slate-900/55'],
+  [class~='bg-slate-900/60'], [class~='bg-slate-900/70'], [class~='bg-slate-900/80'],
+  [class~='bg-slate-800'], [class~='bg-slate-800/50'], [class~='bg-slate-800/60']
+) {
+  background-color: #ffffff !important;
+}
+
+html[data-theme='light'] [class~='bg-emerald-950/35'] {
+  background-color: #ecfdf5 !important;
+}
+
+/* Bordas escuras viram bordas claras */
+html[data-theme='light'] :is(
+  [class~='border-slate-800'], [class~='border-slate-800/80'],
+  [class~='border-slate-700'], [class~='border-slate-700/60'],
+  [class~='border-slate-600']
+) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Degrades escuros clareiam pelas variaveis do Tailwind */
+html[data-theme='light'] :is(
+  [class~='from-slate-950'], [class~='from-slate-900'],
+  [class~='from-slate-800'], [class~='from-slate-700']
+) {
+  --tw-gradient-from: #f8fafc var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: rgb(248 250 252 / 0) var(--tw-gradient-to-position) !important;
+}
+
+html[data-theme='light'] :is(
+  [class~='to-slate-950'], [class~='to-slate-900'], [class~='to-slate-800']
+) {
+  --tw-gradient-to: #e2e8f0 var(--tw-gradient-to-position) !important;
+}
+
+html[data-theme='light'] [class~='via-blue-950'],
+html[data-theme='light'] [class~='via-emerald-950'] {
+  --tw-gradient-via: #e0f2fe var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: rgb(224 242 254 / 0) var(--tw-gradient-to-position) !important;
+}
+
+/* Textos claros de escala slate escurecem */
+html[data-theme='light'] [class~='text-slate-50'] { color: #0f172a !important; }
+html[data-theme='light'] [class~='text-slate-100'] { color: #1e293b !important; }
+html[data-theme='light'] [class~='text-slate-200'] { color: #334155 !important; }
+html[data-theme='light'] [class~='text-slate-300'] { color: #475569 !important; }
+
+/* Textos de destaque clarinhos (200/300/400) ganham a versao 600/700 */
+html[data-theme='light'] :is([class~='text-cyan-200'], [class~='text-cyan-300'], [class~='text-cyan-400']) { color: #0e7490 !important; }
+html[data-theme='light'] :is([class~='text-sky-200'], [class~='text-sky-300'], [class~='text-sky-400']) { color: #0369a1 !important; }
+html[data-theme='light'] :is([class~='text-blue-200'], [class~='text-blue-300'], [class~='text-blue-400']) { color: #1d4ed8 !important; }
+html[data-theme='light'] :is([class~='text-emerald-200'], [class~='text-emerald-300'], [class~='text-emerald-400']) { color: #047857 !important; }
+html[data-theme='light'] :is([class~='text-green-200'], [class~='text-green-300'], [class~='text-green-400']) { color: #15803d !important; }
+html[data-theme='light'] :is([class~='text-rose-200'], [class~='text-rose-300'], [class~='text-rose-400']) { color: #be123c !important; }
+html[data-theme='light'] :is([class~='text-red-200'], [class~='text-red-300'], [class~='text-red-400']) { color: #b91c1c !important; }
+html[data-theme='light'] :is([class~='text-amber-200'], [class~='text-amber-300'], [class~='text-amber-400']) { color: #b45309 !important; }
+html[data-theme='light'] :is([class~='text-yellow-200'], [class~='text-yellow-300'], [class~='text-yellow-400']) { color: #a16207 !important; }
+html[data-theme='light'] :is([class~='text-orange-300'], [class~='text-orange-400']) { color: #c2410c !important; }
+html[data-theme='light'] :is([class~='text-purple-200'], [class~='text-purple-300'], [class~='text-purple-400']) { color: #6d28d9 !important; }
+html[data-theme='light'] :is([class~='text-violet-200'], [class~='text-violet-300'], [class~='text-violet-400']) { color: #6d28d9 !important; }
+
+/* Campos de formulario nativos: fundo branco, texto escuro, borda clara */
+html[data-theme='light'] input:not([type='checkbox']):not([type='radio']),
+html[data-theme='light'] select,
+html[data-theme='light'] textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html[data-theme='light'] input::placeholder,
+html[data-theme='light'] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='light'] select option {
+  background-color: #ffffff;
+  color: #0f172a;
 }
 
 ::-webkit-scrollbar {

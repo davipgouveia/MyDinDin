@@ -560,7 +560,7 @@ function DashboardContent() {
 
       {activePage === 'categories' && (
         <section className="grid gap-4 lg:grid-cols-2">
-          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-[1.75rem] border border-slate-800 bg-gradient-to-br from-slate-950 to-slate-900 p-4 md:p-5">
+          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Categorias de despesa</h3>
             <CategoriesManager
               categories={getOrderedCategories('expense')}
@@ -572,7 +572,7 @@ function DashboardContent() {
             />
           </motion.section>
 
-          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-[1.75rem] border border-slate-800 bg-gradient-to-br from-slate-950 to-slate-900 p-4 md:p-5">
+          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Categorias de receita</h3>
             <CategoriesManager
               categories={getOrderedCategories('income')}

@@ -17,10 +17,12 @@ export function LoginScreen({ children, variant = 'signin' }) {
 
   return (
     <main
-      className={`relative min-h-screen overflow-hidden px-4 py-6 text-white sm:py-8 ${
-        isSignUp
-          ? 'bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900'
-          : 'bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900'
+      className={`relative min-h-screen overflow-hidden px-4 py-6 sm:py-8 ${
+        isLight
+          ? 'bg-gradient-to-br from-slate-50 via-sky-50 to-slate-100 text-slate-900'
+          : isSignUp
+            ? 'bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 text-white'
+            : 'bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white'
       }`}
     >
       <div className="pointer-events-none absolute inset-0 opacity-40">

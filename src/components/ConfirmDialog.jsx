@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, X } from 'lucide-react'
+import { useEscapeClose } from '../hooks/useEscapeClose'
 
 export function ConfirmDialog({
   open = false,
@@ -12,6 +13,7 @@ export function ConfirmDialog({
   onConfirm = () => {},
   onCancel = () => {},
 }) {
+  useEscapeClose(open, onCancel)
   return (
     <AnimatePresence>
       {open && (

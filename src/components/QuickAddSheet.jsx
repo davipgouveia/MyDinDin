@@ -1,8 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
 import { HelpHint } from './HelpHint'
+import { useEscapeClose } from '../hooks/useEscapeClose'
 
 export function QuickAddSheet({ open = false, onClose = () => {}, onSelectType = () => {} }) {
+  useEscapeClose(open, onClose)
   return (
     <AnimatePresence>
       {open && (

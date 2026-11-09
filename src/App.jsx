@@ -35,6 +35,7 @@ import { TransactionCategoryProvider, useTransactionCategory } from './context/T
 import { useFinancialAI, useFinancialBudget } from './hooks/useFinancialAI'
 import { ToastProvider, toast } from './hooks/useToast'
 import { APP_BUILD_LABEL } from './constants/appMeta'
+import { formatCurrency } from './utils/format'
 import { usePreferences } from './context/PreferencesContext'
 
 const palette = ['#06b6d4', '#22c55e', '#f97316', '#eab308', '#ef4444', '#8b5cf6']
@@ -504,6 +505,23 @@ function DashboardContent() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
+
+              {categoryChart.length > 0 && (
+                <ul className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                  {categoryChart.slice(0, 8).map((entry, index) => {
+                    const total = categoryChart.reduce((sum, item) => sum + item.value, 0)
+                    const percent = total > 0 ? (entry.value / total) * 100 : 0
+                    return (
+                      <li key={entry.name} className="flex items-center gap-2 text-xs">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: palette[index % palette.length] }} />
+                        <span className="min-w-0 flex-1 truncate text-slate-300">{entry.name}</span>
+                        <span className="font-medium text-slate-200">{formatCurrency(entry.value)}</span>
+                        <span className="w-10 text-right text-slate-500">{percent.toFixed(0)}%</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </section>
           </div>
 

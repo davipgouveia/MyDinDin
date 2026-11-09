@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
-import { BadgeCheck, BellRing, Download, FileSpreadsheet, LogOut, Shield, Sparkles, Trash2, WalletCards } from 'lucide-react'
+import { BadgeCheck, BellRing, Copy, Download, FileSpreadsheet, LogOut, Shield, Sparkles, Trash2, WalletCards } from 'lucide-react'
 import { formatCurrency } from '../utils/format'
 import { formatMonthYearBR } from '../utils/date'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -491,7 +491,26 @@ export function UserPage({
           <div className={`rounded-xl border ${isCompact ? 'p-3' : 'p-4'} ${surfaceSoftClass}`}>
             <p className={`text-xs uppercase tracking-[0.16em] ${textMutedClass}`}>Grupo atual</p>
             <p className={`mt-1 text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{group?.name || 'Sem nome definido'}</p>
-            <p className={`mt-1 text-xs ${textMutedClass}`}>ID: {profile?.group_id || 'Não informado'}</p>
+            <p className={`mt-1 flex items-center gap-1.5 text-xs ${textMutedClass}`}>
+              <span className="break-all">ID: {profile?.group_id || 'Não informado'}</span>
+              {profile?.group_id && (
+                <button
+                  type="button"
+                  title="Copiar ID do grupo"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(profile.group_id)
+                      toast.success('ID do grupo copiado!')
+                    } catch {
+                      toast.error('Não consegui copiar — copie manualmente.')
+                    }
+                  }}
+                  className="shrink-0 rounded-md border border-slate-600/40 p-1 transition hover:border-slate-400"
+                >
+                  <Copy size={12} />
+                </button>
+              )}
+            </p>
 
             {isOwner ? (
               <form className="mt-3 space-y-2" onSubmit={handleGroupRename}>

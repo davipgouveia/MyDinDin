@@ -9,6 +9,7 @@ import { buildFinanceChatReply, buildImprovementSuggestions } from '../lib/finan
 import { usePreferences } from '../context/PreferencesContext'
 import { useFinancialBudget } from '../hooks/useFinancialAI'
 import { askGemini } from '../lib/geminiAgent'
+import { ConfirmDialog } from './ConfirmDialog'
 
 const STORAGE_KEY = 'mydindin_ai_chat_history'
 
@@ -26,6 +27,7 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
   const { messages, setMessages } = useChat()
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
   const bottomRef = useRef(null)
   const isLight = theme === 'light'
   const { addBudget } = useFinancialBudget()
@@ -108,6 +110,32 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
 
     // Verifica se a última mensagem era de permissão de categoria
     const lastMsg = messages[messages.length - 1]
+
+    // Resposta que NAO e "sim" nao pode fazer a permissao evaporar em
+    // silencio: avisa que a criacao foi cancelada (e, se a pessoa fez
+    // outra pergunta, ela segue o fluxo normal logo abaixo).
+    if (
+      lastMsg &&
+      lastMsg.meta?.intent === 'category_permission' &&
+      !['sim', 'Sim', 'SIM', 's', 'S'].includes(normalized)
+    ) {
+      const pendingName = lastMsg.meta.pendingCategory?.name || 'nova categoria'
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          text: `Beleza, cancelei a criação da categoria "${pendingName}". 👍`,
+          meta: { intent: 'category_cancelled' },
+        },
+      ])
+
+      if (['não', 'nao', 'n', 'cancelar', 'deixa', 'não quero', 'nao quero'].includes(normalized.toLowerCase())) {
+        setInput('')
+        return
+      }
+    }
+
     if (
       lastMsg &&
       lastMsg.meta?.intent === 'category_permission' &&
@@ -279,13 +307,26 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
 
         <button
           type="button"
-          onClick={handleClearChat}
+          onClick={() => setConfirmClear(true)}
           className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-red-500/40 hover:text-white"
         >
           <Trash2 size={14} />
           {t('chatClear')}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmClear}
+        danger
+        title="Limpar a conversa?"
+        message="Todo o histórico com o DinDinMind neste aparelho será apagado. Os seus lançamentos não são afetados."
+        confirmLabel="Limpar"
+        onConfirm={() => {
+          handleClearChat()
+          setConfirmClear(false)
+        }}
+        onCancel={() => setConfirmClear(false)}
+      />
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         {latestSummary.map((item) => (

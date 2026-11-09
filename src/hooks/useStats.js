@@ -17,6 +17,7 @@ export function useDailyMonthlyStats() {
         totalDailyExpenses: 0,
         totalDailyIncomes: 0,
         totalMonthlyExpenses: 0,
+        totalMonthlyIncomes: 0,
         balance: 0,
         monthlyBalance: 0,
         avgDailyExpense: 0,
@@ -49,8 +50,10 @@ export function useDailyMonthlyStats() {
     }
 
     visibleTransactions.forEach((transaction) => {
+      // Data do LANCAMENTO primeiro: created_at e o dia do cadastro —
+      // num extrato importado, tudo cairia no dia da importacao.
       const transDate = startOfDay(
-        transaction.createdAt || transaction.created_at || transaction.date || transaction.transaction_date,
+        transaction.date || transaction.transaction_date || transaction.createdAt || transaction.created_at,
       )
 
       if (!transDate) return
@@ -116,17 +119,22 @@ export function useDailyMonthlyStats() {
       }
     })
 
-    // Calcular totais
-    const totalDailyExpenses = dailyExpenses.reduce((sum, d) => sum + d.value, 0)
-    const totalDailyIncomes = dailyIncomes.reduce((sum, d) => sum + d.value, 0)
+    // Calcular totais — "do Dia" e HOJE mesmo (antes somava a janela de
+    // 30 dias e o cartao do dia repetia o numero do mes)
+    const todayKey = toDateKey(today)
+    const totalDailyExpenses = dailyExpenses.find((d) => d.date === todayKey)?.value || 0
+    const totalDailyIncomes = dailyIncomes.find((d) => d.date === todayKey)?.value || 0
     const totalMonthlyExpenses = Object.values(monthlyByCategory).reduce(
       (sum, val) => sum + val,
       0,
     )
+    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+    const totalMonthlyIncomes = monthlyAccumulator[currentMonthKey]?.income || 0
 
-    // Calcular média
-    const avgDailyExpense = totalDailyExpenses / dailyExpenses.length
-    const avgDailyIncome = totalDailyIncomes / dailyIncomes.length
+    // Media diaria do MES: total do mes / dias corridos ate hoje
+    const daysElapsedInMonth = Math.max(today.getDate(), 1)
+    const avgDailyExpense = totalMonthlyExpenses / daysElapsedInMonth
+    const avgDailyIncome = totalMonthlyIncomes / daysElapsedInMonth
 
     // Encontrar maior gasto do mês
     const largestExpenseCategory = Object.entries(monthlyByCategory).sort(
@@ -145,8 +153,9 @@ export function useDailyMonthlyStats() {
       totalDailyExpenses,
       totalDailyIncomes,
       totalMonthlyExpenses,
+      totalMonthlyIncomes,
       balance: totalDailyIncomes - totalDailyExpenses,
-      monthlyBalance: totalDailyIncomes - totalMonthlyExpenses,
+      monthlyBalance: totalMonthlyIncomes - totalMonthlyExpenses,
 
       // Médias
       avgDailyExpense,

@@ -2,6 +2,24 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useFinance } from '../context/FinanceContext'
 import { toast } from './useToast'
 import { parseDateValue, toDateKey } from '../utils/date'
+import { normalizeText } from '../lib/quickParse'
+import { EXPENSE_CATEGORIES } from '../constants/categories'
+
+const DISMISSED_KEY = 'mydindin_dismissed_recs'
+
+const readDismissedKeys = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const currentMonthKey = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
 
 export function useFinancialAI() {
   const { visibleTransactions } = useFinance()
@@ -11,13 +29,19 @@ export function useFinancialAI() {
   const generateInsights = useCallback(() => {
     const thisMonth = new Date()
     const startOfMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 1)
+    const startOfNextMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 1)
     const daysInMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 0).getDate()
+    const daysElapsed = Math.max(thisMonth.getDate(), 1)
     const remainingDays = Math.max(daysInMonth - thisMonth.getDate(), 0)
 
+    // A data que vale e a do LANCAMENTO (transaction_date), nao a de
+    // cadastro: extrato importado entra com created_at de hoje e datas
+    // reais de meses atras — usar created_at jogava tudo no mes atual
+    // e a previsao explodia (chegou a R$ 204 mil).
     const monthlyTransactions = visibleTransactions.filter((t) => {
-      const tDate = parseDateValue(t.createdAt || t.created_at || t.date || t.transaction_date)
+      const tDate = parseDateValue(t.date || t.transaction_date || t.createdAt || t.created_at)
       if (!tDate) return false
-      return tDate >= startOfMonth
+      return tDate >= startOfMonth && tDate < startOfNextMonth
     })
 
     const categoryExpenses = {}
@@ -27,8 +51,8 @@ export function useFinancialAI() {
 
     monthlyTransactions.forEach((t) => {
       const amount = parseFloat(t.amount) || 0
-      const category = t.category || 'outros'
-      const dateStr = toDateKey(t.createdAt || t.created_at || t.date || t.transaction_date)
+      const category = t.category || 'Outros'
+      const dateStr = toDateKey(t.date || t.transaction_date || t.createdAt || t.created_at)
 
       if (!dateStr) return
 
@@ -53,11 +77,10 @@ export function useFinancialAI() {
     const previousDailyAverage = previousDailyValues.length
       ? previousDailyValues.reduce((sum, value) => sum + value, 0) / previousDailyValues.length
       : 0
-    const baselineDailyAverage = recentDailyAverage || (
-      Object.values(dailyExpenses).length
-        ? Object.values(dailyExpenses).reduce((sum, value) => sum + value, 0) / Object.values(dailyExpenses).length
-        : 0
-    )
+    // Ritmo diario = gasto do mes dividido pelos dias CORRIDOS do mes
+    // (nao pelos dias com gasto): um unico dia pesado nao pode virar a
+    // "media diaria" e explodir a previsao.
+    const baselineDailyAverage = totalExpenses / daysElapsed
     const projectedMonthExpense = totalExpenses + baselineDailyAverage * remainingDays
     const trendChangePercent = previousDailyAverage > 0
       ? ((recentDailyAverage - previousDailyAverage) / previousDailyAverage) * 100
@@ -126,19 +149,15 @@ export function useFinancialAI() {
       }
     }
 
-    // Análise 4: Sugestão de categorias com baixo gasto
-    const allCategories = [
-      'alimentacao',
-      'transporte',
-      'saude',
-      'educacao',
-      'lazer',
-      'contas',
-      'shopping',
-    ]
-    const unusedCategories = allCategories.filter((cat) => !(cat in categoryExpenses))
+    // Análise 4: Sugestão de categorias com baixo gasto (nomes oficiais,
+    // comparados sem acento/caixa — antes comparava slugs e o texto
+    // vazava "alimentacao"; e nada de "gastando bem" com saldo negativo)
+    const usedCategoryKeys = new Set(Object.keys(categoryExpenses).map((name) => normalizeText(name)))
+    const unusedCategories = EXPENSE_CATEGORIES
+      .map((category) => category.name)
+      .filter((name) => !usedCategoryKeys.has(normalizeText(name)))
 
-    if (unusedCategories.length > 0 && Object.keys(categoryExpenses).length > 3) {
+    if (unusedCategories.length > 0 && Object.keys(categoryExpenses).length > 3 && newInsights.balance >= 0) {
       newRecommendations.push({
         id: 'budget_optimization',
         type: 'success',
@@ -194,8 +213,15 @@ export function useFinancialAI() {
       })
     }
 
+    // Recomendacao dispensada nao volta: as dispensas do mes ficam
+    // guardadas no aparelho e filtram a lista regenerada.
+    const dismissedKeys = new Set(readDismissedKeys())
+    const visibleRecommendations = newRecommendations.filter(
+      (rec) => !dismissedKeys.has(`${rec.id}:${currentMonthKey()}`),
+    )
+
     setInsights(newInsights)
-    setRecommendations(newRecommendations.sort((a, b) => {
+    setRecommendations(visibleRecommendations.sort((a, b) => {
       const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 }
       return priorityOrder[a.priority] - priorityOrder[b.priority]
     }))
@@ -212,6 +238,15 @@ export function useFinancialAI() {
   }, [visibleTransactions, generateInsights])
 
   const dismissRecommendation = useCallback((id) => {
+    try {
+      const keys = readDismissedKeys()
+      const key = `${id}:${currentMonthKey()}`
+      if (!keys.includes(key)) {
+        localStorage.setItem(DISMISSED_KEY, JSON.stringify([...keys, key].slice(-60)))
+      }
+    } catch {
+      // Sem localStorage, a dispensa vale so pra sessao.
+    }
     setRecommendations((prev) => prev.filter((r) => r.id !== id))
   }, [])
 

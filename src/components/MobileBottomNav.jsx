@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Home, ChartColumnBig, UserRound, Plus, PanelsTopLeft, Bell, Sparkles, Tags, X } from 'lucide-react'
 import { usePreferences } from '../context/PreferencesContext'
+import { useEscapeClose } from '../hooks/useEscapeClose'
 
 export function MobileBottomNav({ activePage, onNavigate, onQuickAdd }) {
   const { t } = usePreferences()
   const [moreOpen, setMoreOpen] = useState(false)
+  useEscapeClose(moreOpen, () => setMoreOpen(false))
 
   const groupedPages = ['categories', 'reminders', 'ai']
 

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { X, Plus } from 'lucide-react'
+import { useEscapeClose } from '../hooks/useEscapeClose'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, FREQUENCY_OPTIONS } from '../constants/categories'
 import { useTransactionCategory } from '../context/TransactionCategoryContext'
 import { HelpHint } from './HelpHint'
@@ -29,6 +30,7 @@ export function AdvancedTransactionModal({
   const categories = getAllCategories(transactionType)
   const isIncome = transactionType === 'income'
   const [submitting, setSubmitting] = useState(false)
+  useEscapeClose(isOpen, onClose)
 
   useEffect(() => {
     if (!isOpen) return

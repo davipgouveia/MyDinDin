@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { getPublicAppUrlWithPath } from '../lib/publicAppUrl'
 
@@ -284,6 +284,12 @@ export function FinanceProvider({ children }) {
     ])
   }, [loadActivityLogs, loadBudgets, loadGroup, loadGroupInvites, loadMembers, loadPendingGroupInvites, loadProfile, loadTransactionComments, loadTransactions])
 
+  // Usuário cujo workspace já está carregado. O Supabase emite evento de
+  // autenticação também na renovação automática do token (que acontece
+  // quando o app volta ao foco) — sem esta guarda, cada retorno virava um
+  // "reload" completo: loading na tela e TODOS os dados buscados de novo.
+  const workspaceUserIdRef = useRef(null)
+
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
       setLoading(false)
@@ -313,6 +319,7 @@ export function FinanceProvider({ children }) {
             10000,
             'Tempo limite ao carregar dados iniciais do workspace.',
           )
+          workspaceUserIdRef.current = data.session.user.id
         }
       } catch (bootstrapError) {
         if (mounted) setError(bootstrapError.message)
@@ -329,12 +336,20 @@ export function FinanceProvider({ children }) {
     bootstrap()
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      // Mesmo usuário (renovação de token, retorno de foco, aba vizinha):
+      // só atualiza o objeto da sessão, sem loading e sem buscar nada.
+      if (nextSession?.user && nextSession.user.id === workspaceUserIdRef.current) {
+        setSession(nextSession)
+        return
+      }
+
       const startedAt = Date.now()
       setLoading(true)
       setSession(nextSession)
       setError(null)
 
       if (!nextSession?.user) {
+        workspaceUserIdRef.current = null
         setProfile(null)
         setGroup(null)
         setMembers([])
@@ -354,6 +369,7 @@ export function FinanceProvider({ children }) {
           20000,
           'Tempo limite ao atualizar dados da sessão. Verifique sua conexão e tente novamente.',
         )
+        workspaceUserIdRef.current = nextSession.user.id
       } catch (refreshError) {
         setError(refreshError.message)
       } finally {

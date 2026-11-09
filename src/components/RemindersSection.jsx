@@ -112,7 +112,17 @@ export function PaymentRemindersSection({ reminders = [], onDelete = () => {}, o
   )
 }
 
-export function RecurringPaymentsSection({ payments = [], onDelete = () => {}, onEdit = () => {} }) {
+const FREQUENCY_LABELS = {
+  diaria: 'todo dia',
+  semanal: 'toda semana',
+  quinzenal: 'a cada 15 dias',
+  mensal: 'todo mês',
+  trimestral: 'a cada 3 meses',
+  semestral: 'a cada 6 meses',
+  anual: 'todo ano',
+}
+
+export function RecurringPaymentsSection({ payments = [], onDelete = () => {}, onEdit = () => {}, onToggleAuto = null }) {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -162,12 +172,38 @@ export function RecurringPaymentsSection({ payments = [], onDelete = () => {}, o
             >
               <div className="flex-1">
                 <p className="text-sm font-medium text-slate-200">{payment.name}</p>
-                <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                   <Calendar size={12} />
-                  <span>{payment.frequency}</span>
+                  <span>{FREQUENCY_LABELS[payment.frequency] || payment.frequency}</span>
                   <span>•</span>
-                  <span>R$ {payment.amount.toFixed(2)}</span>
+                  <span>R$ {Number(payment.amount || 0).toFixed(2)}</span>
+                  {payment.nextDueDate && (
+                    <>
+                      <span>•</span>
+                      <span>próx.: {formatDateBR(payment.nextDueDate)}</span>
+                    </>
+                  )}
+                  {payment.category && (
+                    <>
+                      <span>•</span>
+                      <span>{payment.category}</span>
+                    </>
+                  )}
                 </div>
+                {onToggleAuto && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleAuto(payment)}
+                    className={`mt-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                      payment.autoPost
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20'
+                        : 'border-slate-600 bg-slate-800/60 text-slate-300 hover:border-slate-400'
+                    }`}
+                    title="Quando ativo, o lançamento é criado sozinho no vencimento"
+                  >
+                    {payment.autoPost ? '✓ Lança sozinho no vencimento' : 'Lançar sozinho: desligado'}
+                  </button>
+                )}
               </div>
 
               <div className="flex gap-2">

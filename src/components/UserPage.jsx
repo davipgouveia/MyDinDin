@@ -2,6 +2,8 @@ import { motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { BadgeCheck, BellRing, Download, FileSpreadsheet, LogOut, Shield, Sparkles, Trash2, WalletCards } from 'lucide-react'
 import { formatCurrency } from '../utils/format'
+import { formatMonthYearBR } from '../utils/date'
+import { ConfirmDialog } from './ConfirmDialog'
 import { isResendConfigured, sendAlertEmail } from '../lib/resend'
 import { buildGroupInviteEmail } from '../lib/emailTemplates'
 import { getPublicAppUrl } from '../lib/publicAppUrl'
@@ -28,6 +30,8 @@ export function UserPage({
   onInviteGroupMember = () => {},
   onRevokeGroupInvite = () => {},
   onAcceptGroupInvite = () => {},
+  onLeaveGroup = () => {},
+  onRemoveGroupMember = () => {},
   onSignOut,
   ownerFilter,
   onOwnerFilterChange,
@@ -39,6 +43,8 @@ export function UserPage({
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteExpiresIn, setInviteExpiresIn] = useState('7')
   const [fullNameForSwitch, setFullNameForSwitch] = useState(profile?.full_name || '')
+  const [memberConfirm, setMemberConfirm] = useState(null)
+  const [memberActionBusy, setMemberActionBusy] = useState(false)
   const { theme, language, accent, density, layoutMode, toggleTheme, setLanguage, setAccent, setDensity, setLayoutMode, t } = usePreferences()
   const isLight = theme === 'light'
   const isCompact = density === 'compact'
@@ -59,6 +65,7 @@ export function UserPage({
     transaction_commented: 'Comentário adicionado',
     budget_shared: 'Orçamento compartilhado criado',
     budget_deleted: 'Orçamento compartilhado removido',
+    statement_imported: 'Extrato ou fatura importado',
   }
   const surfaceClass = isLight ? 'border-slate-200 bg-white/90 text-slate-900' : 'border-slate-800 bg-slate-900/70 text-white'
   const surfaceSoftClass = isLight ? 'border-slate-200 bg-white/80' : 'border-slate-800 bg-slate-950/70'
@@ -206,6 +213,62 @@ export function UserPage({
       toast.error(`Erro ao trocar de grupo: ${acceptError.message}`)
     }
   }
+
+  const handleMemberConfirm = async () => {
+    if (!memberConfirm) return
+    setMemberActionBusy(true)
+
+    try {
+      if (memberConfirm.kind === 'accept') {
+        await handleAcceptInvite(memberConfirm.invite.invite_id)
+      } else if (memberConfirm.kind === 'remove') {
+        await onRemoveGroupMember(memberConfirm.member.id)
+        toast.success(`${memberConfirm.member.full_name || 'Membro'} removido(a) do grupo.`)
+      } else if (memberConfirm.kind === 'leave') {
+        await onLeaveGroup()
+        toast.success('Você saiu do grupo.')
+      }
+      setMemberConfirm(null)
+    } catch (memberError) {
+      toast.error(`Erro: ${memberError.message}`)
+    } finally {
+      setMemberActionBusy(false)
+    }
+  }
+
+  const memberConfirmContent = (() => {
+    if (!memberConfirm) return { title: '', message: '', confirmLabel: 'Confirmar', danger: false }
+
+    if (memberConfirm.kind === 'accept') {
+      return {
+        title: `Trocar para o grupo ${memberConfirm.invite.group_name}?`,
+        message: `Ao aceitar, você SAI do grupo "${group?.name || 'atual'}" e entra em "${memberConfirm.invite.group_name}".\n\nSeus lançamentos ficam guardados no grupo atual: eles não vêm junto e você deixa de vê-los. Nada é apagado — se te convidarem de volta, você enxerga tudo de novo.`,
+        confirmLabel: 'Sim, trocar de grupo',
+        danger: false,
+      }
+    }
+
+    if (memberConfirm.kind === 'remove') {
+      return {
+        title: `Remover ${memberConfirm.member.full_name || 'este membro'} do grupo?`,
+        message: `A pessoa perde o acesso ao grupo ${group?.name || ''} na hora.\n\nOs lançamentos que ela fez CONTINUAM no grupo — nada é apagado.`,
+        confirmLabel: 'Remover do grupo',
+        danger: true,
+      }
+    }
+
+    const othersRemain = members.some((member) => member.id !== profile?.id)
+    return {
+      title: 'Sair do grupo?',
+      message: isOwner
+        ? othersRemain
+          ? `Você é o dono do grupo ${group?.name || ''}: ao sair, outro membro assume como dono automaticamente.\n\nSeus lançamentos continuam no grupo. Para voltar, o novo dono precisa te convidar de novo.`
+          : `Você é a única pessoa do grupo ${group?.name || ''}. Ao sair, você perde o acesso aos lançamentos dele.`
+        : `Você perde o acesso ao grupo ${group?.name || ''} e aos lançamentos compartilhados.\n\nOs lançamentos que você fez continuam no grupo. Para voltar, o dono precisa te convidar de novo.`,
+      confirmLabel: 'Sair do grupo',
+      danger: true,
+    }
+  })()
 
   return (
     <section className="space-y-4 md:space-y-5">
@@ -406,14 +469,39 @@ export function UserPage({
               <ul className="mt-2 space-y-1.5">
                 {members.length > 0 ? (
                   members.map((member) => (
-                    <li key={member.id} className={`rounded-lg border px-2.5 py-1.5 text-xs ${surfaceClass}`}>
-                      {member.full_name || 'Membro'}
+                    <li key={member.id} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs ${surfaceClass}`}>
+                      <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span className="truncate">{member.full_name || 'Membro'}</span>
+                        {member.role === 'owner' && (
+                          <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200">dono</span>
+                        )}
+                        {member.id === user?.id && (
+                          <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-cyan-200">você</span>
+                        )}
+                      </span>
+                      {isOwner && member.id !== user?.id && (
+                        <button
+                          type="button"
+                          onClick={() => setMemberConfirm({ kind: 'remove', member })}
+                          className="shrink-0 rounded-md border border-red-500/25 bg-red-500/10 px-2 py-1 text-[11px] font-semibold text-red-200 transition hover:bg-red-500/15"
+                        >
+                          Remover
+                        </button>
+                      )}
                     </li>
                   ))
                 ) : (
                   <li className={`text-xs ${textMutedClass}`}>Nenhum membro listado.</li>
                 )}
               </ul>
+
+              <button
+                type="button"
+                onClick={() => setMemberConfirm({ kind: 'leave' })}
+                className="mt-3 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/15"
+              >
+                Sair do grupo
+              </button>
             </div>
           </div>
 
@@ -490,7 +578,7 @@ export function UserPage({
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => handleAcceptInvite(invite.invite_id)}
+                          onClick={() => setMemberConfirm({ kind: 'accept', invite })}
                           className="rounded-md border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/15"
                         >
                           Entrar neste grupo
@@ -562,7 +650,7 @@ export function UserPage({
                 <div>
                   <p className={`text-sm font-medium ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{budget.category}</p>
                   <p className={`text-xs ${textMutedClass}`}>
-                    Limite: {formatCurrency(budget.limit)} • Mês: {new Date(budget.monthStart).toLocaleDateString('pt-BR')}
+                    Limite: {formatCurrency(budget.limit)} • Mês: {formatMonthYearBR(budget.monthStart)}
                   </p>
                 </div>
                 <button
@@ -629,6 +717,17 @@ export function UserPage({
         <LogOut size={16} />
         Sair da conta
       </button>
+
+      <ConfirmDialog
+        open={Boolean(memberConfirm)}
+        title={memberConfirmContent.title}
+        message={memberConfirmContent.message}
+        confirmLabel={memberConfirmContent.confirmLabel}
+        danger={memberConfirmContent.danger}
+        busy={memberActionBusy}
+        onConfirm={handleMemberConfirm}
+        onCancel={() => setMemberConfirm(null)}
+      />
     </section>
   )
 }

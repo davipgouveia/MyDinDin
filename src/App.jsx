@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { Plus, ServerCrash, Settings } from 'lucide-react'
+import { CheckCircle2, Plus, ServerCrash, Settings, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import SummaryCard from './components/SummaryCard'
 import TransactionItem from './components/TransactionItem'
@@ -18,6 +18,14 @@ import { AdvancedTransactionModal } from './components/AdvancedTransactionModal'
 import { MobileBottomNav } from './components/MobileBottomNav'
 import { QuickAddSheet } from './components/QuickAddSheet'
 import { UserPage } from './components/UserPage'
+import { QuickCapture } from './components/QuickCapture'
+import { PendingClassification } from './components/PendingClassification'
+import { StatementImport } from './components/StatementImport'
+import { WeeklySummary } from './components/WeeklySummary'
+import { ConfirmDialog } from './components/ConfirmDialog'
+import { RecurringPaymentForm } from './components/RecurringPaymentForm'
+import { buildLearnedCategoryMap, UNCATEGORIZED_LABEL } from './lib/quickParse'
+import { useRecurringAutoPost } from './hooks/useRecurringAutoPost'
 import { AppFooter } from './components/AppFooter'
 import { HelpHint } from './components/HelpHint'
 import { LoadingOverlay } from './components/LoadingOverlay'
@@ -42,6 +50,8 @@ function DashboardContent() {
     removePaymentReminder,
     updatePaymentReminder,
     recurringPayments,
+    addRecurringPayment,
+    updateRecurringPayment,
     removeRecurringPayment,
     addCustomCategory,
     removeCustomCategory,
@@ -65,6 +75,11 @@ function DashboardContent() {
     inviteGroupMember,
     revokeGroupInvite,
     acceptGroupInvite,
+    leaveGroup,
+    removeGroupMember,
+    transactions,
+    addTransactionsBatch,
+    updateTransactionCategory,
     visibleTransactions,
     transactionComments,
     activityLogs,
@@ -98,6 +113,43 @@ function DashboardContent() {
     : 'border-slate-800/80 bg-slate-950/75 text-white shadow-[0_14px_34px_rgba(2,6,23,0.35)]'
   const panelClass = isLight ? 'border-slate-200 bg-white/90 text-slate-900' : 'border-slate-800 bg-slate-950/70 text-white'
   const panelSoftClass = isLight ? 'border-slate-200 bg-white/80 text-slate-900' : 'border-slate-800 bg-slate-900/50 text-white'
+
+  const learnedCategoryMap = useMemo(() => buildLearnedCategoryMap(transactions), [transactions])
+  const allCategoryNames = useMemo(() => {
+    const names = new Set()
+    getOrderedCategories('expense').forEach((category) => names.add(category.name))
+    getOrderedCategories('income').forEach((category) => names.add(category.name))
+    transactions.forEach((tx) => {
+      if (tx.category) names.add(tx.category)
+    })
+    return [...names]
+  }, [getOrderedCategories, transactions])
+  const pendingClassification = useMemo(
+    () => transactions.filter((tx) => tx.category === UNCATEGORIZED_LABEL),
+    [transactions],
+  )
+
+  const handleQuickSubmit = useCallback(async ({ amount, type, description, category, dateISO }) => {
+    await addTransaction({
+      type,
+      description,
+      amount: Math.abs(amount),
+      category,
+      date: dateISO,
+      created_at: dateISO,
+      dueDate: null,
+      isPaid: true,
+      source: 'quick',
+    })
+  }, [addTransaction])
+
+  useRecurringAutoPost({
+    enabled: Boolean(profile?.group_id),
+    recurringPayments,
+    transactions,
+    addTransaction,
+    updateRecurringPayment,
+  })
 
   const latestTransactions = useMemo(() => visibleTransactions.slice(0, 10), [visibleTransactions])
   const upcomingReminders = useMemo(
@@ -245,8 +297,16 @@ function DashboardContent() {
       </motion.header>
 
       {error && (
-        <section className={`rounded-xl border px-3 py-2 text-xs ${isLight ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-rose-700/40 bg-rose-900/20 text-rose-200'}`}>
-          {error}
+        <section className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs ${isLight ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-rose-700/40 bg-rose-900/20 text-rose-200'}`}>
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            aria-label="Fechar aviso"
+            className="shrink-0 rounded-full p-1 transition hover:bg-rose-500/10"
+          >
+            <X size={14} />
+          </button>
         </section>
       )}
 
@@ -291,6 +351,32 @@ function DashboardContent() {
           className="min-h-[30rem]"
         >
       {activePage === 'dashboard' && (
+        <section className="grid gap-4">
+          <QuickCapture
+            categories={allCategoryNames}
+            learnedMap={learnedCategoryMap}
+            onSubmit={handleQuickSubmit}
+            panelClass={panelClass}
+          />
+
+          <WeeklySummary transactions={transactions} panelClass={panelClass} />
+
+          <PendingClassification
+            transactions={pendingClassification}
+            categories={allCategoryNames}
+            learnedMap={learnedCategoryMap}
+            onClassify={updateTransactionCategory}
+            panelClass={panelClass}
+          />
+
+          <StatementImport
+            transactions={transactions}
+            categories={allCategoryNames}
+            learnedMap={learnedCategoryMap}
+            onImport={(items) => addTransactionsBatch(items, { source: 'import' })}
+            panelClass={panelClass}
+          />
+
         <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="grid gap-4">
             <section className="grid gap-3 sm:grid-cols-3">
@@ -359,6 +445,7 @@ function DashboardContent() {
             </ul>
           </section>
         </section>
+        </section>
       )}
 
       {activePage === 'stats' && (
@@ -426,17 +513,22 @@ function DashboardContent() {
             </motion.div>
           )}
 
-          {recurringPayments.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <RecurringPaymentsSection payments={recurringPayments} onDelete={handleRemoveRecurring} />
-            </motion.div>
-          )}
+          <RecurringPaymentForm
+            categories={allCategoryNames}
+            onCreate={addRecurringPayment}
+            panelClass={panelClass}
+          />
 
-          {paymentReminders.length === 0 && recurringPayments.length === 0 && (
-            <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-6 text-center">
-              <p className="text-sm text-slate-400">Nenhum lembrete ou pagamento recorrente configurado</p>
-            </div>
-          )}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <RecurringPaymentsSection
+              payments={recurringPayments}
+              onDelete={handleRemoveRecurring}
+              onToggleAuto={(payment) => {
+                updateRecurringPayment(payment.id, { autoPost: payment.autoPost !== true })
+                toast.success(payment.autoPost ? `"${payment.name}" não lança mais sozinho.` : `"${payment.name}" agora lança sozinho no vencimento.`)
+              }}
+            />
+          </motion.div>
         </section>
       )}
 
@@ -473,6 +565,8 @@ function DashboardContent() {
           onInviteGroupMember={inviteGroupMember}
           onRevokeGroupInvite={revokeGroupInvite}
           onAcceptGroupInvite={acceptGroupInvite}
+          onLeaveGroup={leaveGroup}
+          onRemoveGroupMember={removeGroupMember}
           summary={summary}
           transactions={visibleTransactions}
           activityLogs={activityLogs}
@@ -555,6 +649,7 @@ export default function App() {
 function SignInView() {
   const [mode, setMode] = useState('signin')
   const [authForm, setAuthForm] = useState({ email: '', password: '' })
+  const [signupEmail, setSignupEmail] = useState(null)
   const { submitting, error, setError, signIn, signUp, resetPassword } = useFinance()
   const { t } = usePreferences()
 
@@ -564,13 +659,56 @@ function SignInView() {
     try {
       if (mode === 'signin') {
         await signIn(authForm)
+        setAuthForm({ email: '', password: '' })
       } else {
-        await signUp(authForm)
+        const result = await signUp(authForm)
+        if (result?.requiresEmailVerification) {
+          setSignupEmail(authForm.email)
+        } else {
+          toast.success('Conta criada! Agora entre com seu email e senha.')
+          setMode('signin')
+        }
+        setAuthForm({ email: '', password: '' })
       }
-      setAuthForm({ email: '', password: '' })
     } catch (authError) {
       setError(authError.message)
     }
+  }
+
+  const handleFieldChange = (field) => (event) => {
+    setAuthForm((prev) => ({ ...prev, [field]: event.target.value }))
+    if (error) setError(null)
+  }
+
+  if (signupEmail) {
+    return (
+      <LoginScreen variant="signup">
+        <section className="w-full rounded-3xl border border-emerald-300/20 bg-emerald-950/35 p-6 text-center shadow-2xl backdrop-blur-xl">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300">
+            <CheckCircle2 size={28} />
+          </div>
+          <h1 className="text-2xl font-bold">Conta criada!</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-300">
+            Enviamos um link de confirmação para <strong className="text-emerald-200">{signupEmail}</strong>.
+            Abra seu e-mail, clique no link para ativar a conta e depois volte aqui para entrar.
+          </p>
+          <p className="mt-3 text-xs text-slate-400">
+            Não achou o e-mail? Confira a caixa de spam ou o lixo eletrônico — às vezes ele cai lá.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSignupEmail(null)
+              setMode('signin')
+              setError(null)
+            }}
+            className="mt-5 w-full rounded-lg bg-emerald-400 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+          >
+            Voltar para entrar
+          </button>
+        </section>
+      </LoginScreen>
+    )
   }
 
   const handlePasswordReset = async () => {
@@ -622,7 +760,7 @@ function SignInView() {
             type="email"
             placeholder="Email"
             value={authForm.email}
-            onChange={(event) => setAuthForm((prev) => ({ ...prev, email: event.target.value }))}
+            onChange={handleFieldChange('email')}
             className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
           />
           <input
@@ -630,7 +768,7 @@ function SignInView() {
             type="password"
             placeholder="Senha"
             value={authForm.password}
-            onChange={(event) => setAuthForm((prev) => ({ ...prev, password: event.target.value }))}
+            onChange={handleFieldChange('password')}
             className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
           />
 
@@ -676,7 +814,9 @@ function SignInView() {
 
 function SetupView() {
   const [setupForm, setSetupForm] = useState({ groupName: '', fullName: '' })
-  const { submitting, error, setError, bootstrapFamilyGroup } = useFinance()
+  const [inviteName, setInviteName] = useState('')
+  const [confirmInvite, setConfirmInvite] = useState(null)
+  const { submitting, error, setError, bootstrapFamilyGroup, pendingGroupInvites, acceptGroupInvite } = useFinance()
   const { t } = usePreferences()
 
   const handleSetupSubmit = async (event) => {
@@ -690,11 +830,69 @@ function SetupView() {
     }
   }
 
+  const handleAcceptInvite = async () => {
+    if (!confirmInvite) return
+
+    try {
+      await acceptGroupInvite({ inviteId: confirmInvite.invite_id, fullName: inviteName })
+      toast.success(`Você entrou no grupo ${confirmInvite.group_name}!`)
+      setConfirmInvite(null)
+    } catch (acceptError) {
+      setError(acceptError.message)
+      setConfirmInvite(null)
+    }
+  }
+
   return (
     <LoginScreen>
       <section className="w-full rounded-3xl border border-white/10 bg-slate-950/60 p-6 shadow-2xl backdrop-blur-xl">
         <h1 className="text-2xl font-bold">{t('setupGroupTitle')}</h1>
         <p className="mt-1 text-sm text-slate-400">{t('setupGroupSubtitle')}</p>
+
+        {pendingGroupInvites.length > 0 && (
+          <div className="mt-5 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4">
+            <p className="text-sm font-semibold text-cyan-100">Você foi convidado para um grupo!</p>
+            <p className="mt-1 text-xs text-cyan-200/80">
+              Se alguém da sua família já usa o MyDinDin, entre no grupo dela em vez de criar um novo.
+            </p>
+
+            <input
+              type="text"
+              placeholder="Seu nome completo"
+              value={inviteName}
+              onChange={(event) => setInviteName(event.target.value)}
+              className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
+            />
+
+            <div className="mt-3 space-y-2">
+              {pendingGroupInvites.map((invite) => (
+                <div
+                  key={invite.invite_id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cyan-300/20 bg-slate-950/50 px-3 py-2.5"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-white">{invite.group_name}</p>
+                    <p className="text-[11px] text-slate-400">
+                      {invite.expires_at
+                        ? `Convite válido até ${new Date(invite.expires_at).toLocaleDateString('pt-BR')}`
+                        : 'Convite sem prazo de validade'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => setConfirmInvite(invite)}
+                    className="rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Entrar neste grupo
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-3 text-center text-[11px] uppercase tracking-[0.16em] text-slate-400">ou crie seu próprio grupo abaixo</p>
+          </div>
+        )}
 
         <form className="mt-5 space-y-3" onSubmit={handleSetupSubmit}>
           <div>
@@ -707,7 +905,10 @@ function SetupView() {
               type="text"
               placeholder={t('groupNameLabel')}
               value={setupForm.groupName}
-              onChange={(event) => setSetupForm((prev) => ({ ...prev, groupName: event.target.value }))}
+              onChange={(event) => {
+                setSetupForm((prev) => ({ ...prev, groupName: event.target.value }))
+                if (error) setError(null)
+              }}
               className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
             />
           </div>
@@ -721,7 +922,10 @@ function SetupView() {
               type="text"
               placeholder={t('fullNameLabel')}
               value={setupForm.fullName}
-              onChange={(event) => setSetupForm((prev) => ({ ...prev, fullName: event.target.value }))}
+              onChange={(event) => {
+                setSetupForm((prev) => ({ ...prev, fullName: event.target.value }))
+                if (error) setError(null)
+              }}
               className="w-full rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-sm"
             />
           </div>
@@ -736,6 +940,16 @@ function SetupView() {
         </form>
 
         {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+
+        <ConfirmDialog
+          open={Boolean(confirmInvite)}
+          title={`Entrar no grupo ${confirmInvite?.group_name || ''}?`}
+          message={'Você entra como membro e passa a compartilhar os lançamentos com o grupo.\n\nSe um dia quiser sair, é só usar a opção "Sair do grupo" na aba Usuário.'}
+          confirmLabel="Entrar no grupo"
+          busy={submitting}
+          onConfirm={handleAcceptInvite}
+          onCancel={() => setConfirmInvite(null)}
+        />
       </section>
     </LoginScreen>
   )

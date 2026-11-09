@@ -258,6 +258,33 @@ export function buildMonthlySummaryEmail({ monthLabel, income, expense, balance,
   })
 }
 
+export function buildWeeklySummaryEmail({ weekLabel, income, expense, balance, topCategory, actionUrl }) {
+  const statRow = (label, value, color) => `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
+    <tr>
+      <td style="padding:12px 16px;border-radius:14px;background-color:${COLORS.innerSoft};border:1px solid ${COLORS.cardBorder};border-left:4px solid ${color};font-family:${FONT};font-size:15px;color:${COLORS.text};">
+        ${label}: <strong style="color:${COLORS.white};">${fmtBRL(value)}</strong>
+      </td>
+    </tr>
+  </table>`
+
+  return buildEmailShell({
+    title: `Seu resumo da semana${weekLabel ? ` (${weekLabel})` : ''}`,
+    preheader: `Na semana: entrou ${fmtBRL(income)}, saiu ${fmtBRL(expense)}, saldo ${fmtBRL(balance)}.`,
+    body: `
+      ${p('Um retrato rápido dos últimos 7 dias do seu grupo — sem precisar abrir o app:')}
+      ${statRow('Entrou', income, COLORS.green)}
+      ${statRow('Saiu', expense, COLORS.red)}
+      ${statRow('Saldo da semana', balance, COLORS.sky)}
+      ${topCategory ? p(`Maior gasto: <strong style="color:${COLORS.white};">${topCategory}</strong>.`, 'margin-top:16px;') : ''}
+      ${p('Ficou algum dia sem lançar? Sem culpa: importe o extrato ou a fatura no app e tudo fica em dia em 1 minuto.')}
+    `,
+    actionUrl,
+    actionLabel: 'Abrir o MyDinDin',
+    footerNote: 'Resumo semanal automático do seu grupo no MyDinDin.',
+  })
+}
+
 export function buildSecurityNoticeEmail({ title, message, actionUrl }) {
   return buildEmailShell({
     title: title || 'Aviso de segurança',

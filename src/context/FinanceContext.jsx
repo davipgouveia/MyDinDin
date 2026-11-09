@@ -48,6 +48,7 @@ const mapTransactionRow = (row) => ({
   dueDate: row.due_date ?? null,
   isPaid: row.is_paid ?? true,
   paymentStatus: row.payment_status ?? null,
+  source: row.source ?? 'manual',
 })
 
 export function FinanceProvider({ children }) {
@@ -138,7 +139,7 @@ export function FinanceProvider({ children }) {
   const loadMembers = useCallback(async (groupId) => {
     const { data, error: membersError } = await supabase
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, role')
       .eq('group_id', groupId)
       .order('full_name', { ascending: true })
 
@@ -149,7 +150,7 @@ export function FinanceProvider({ children }) {
   const loadTransactions = useCallback(async (groupId) => {
     const { data, error: txError } = await supabase
       .from('transactions')
-      .select('id, profile_id, amount, type, transaction_date, due_date, is_paid, payment_status, note, created_at, profile:profiles(full_name), category:categories(name)')
+      .select('id, profile_id, amount, type, transaction_date, due_date, is_paid, payment_status, note, source, created_at, profile:profiles(full_name), category:categories(name)')
       .eq('group_id', groupId)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -426,8 +427,8 @@ export function FinanceProvider({ children }) {
 
     const normalizedEmail = String(email || '').trim().toLowerCase()
     const normalizedPassword = String(password || '')
-    if (normalizedPassword.length < 6) {
-      throw new Error('A senha deve ter pelo menos 6 caracteres.')
+    if (normalizedPassword.length < 8) {
+      throw new Error('A senha deve ter pelo menos 8 caracteres.')
     }
 
     const emailCheck = await checkRegisteredEmail(normalizedEmail)
@@ -650,6 +651,162 @@ export function FinanceProvider({ children }) {
     setSubmitting(false)
   }
 
+  const leaveGroup = async () => {
+    if (!user || !isSupabaseConfigured || !supabase) return
+
+    setSubmitting(true)
+    setError(null)
+
+    const { error: leaveError } = await supabase.rpc('leave_group')
+
+    if (leaveError) {
+      setSubmitting(false)
+      if (leaveError.code === '42883') {
+        throw new Error('Funcao leave_group nao encontrada. Aplique as migrations mais recentes no Supabase.')
+      }
+      throw leaveError
+    }
+
+    await refreshWorkspace(user)
+    setSubmitting(false)
+  }
+
+  const removeGroupMember = async (profileId) => {
+    if (!user || !isSupabaseConfigured || !supabase) return
+    if (profile?.role !== 'owner') {
+      throw new Error('Apenas o owner pode remover membros.')
+    }
+    if (!profileId) {
+      throw new Error('Membro invalido.')
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    const { error: removeError } = await supabase.rpc('remove_group_member', {
+      p_profile_id: profileId,
+    })
+
+    if (removeError) {
+      setSubmitting(false)
+      if (removeError.code === '42883') {
+        throw new Error('Funcao remove_group_member nao encontrada. Aplique as migrations mais recentes no Supabase.')
+      }
+      throw removeError
+    }
+
+    await loadMembers(profile.group_id)
+    setSubmitting(false)
+  }
+
+  // Resolve (criando se preciso) os ids de categoria de um conjunto de
+  // nomes, para insercoes em lote sem repetir a busca por transacao.
+  const resolveCategoryIds = async (categoryNames) => {
+    const uniqueNames = [...new Set(categoryNames.map((name) => (name || 'Outros').trim() || 'Outros'))]
+
+    const { data: existing, error: lookupError } = await supabase
+      .from('categories')
+      .select('id, name')
+      .eq('group_id', profile.group_id)
+      .in('name', uniqueNames)
+
+    if (lookupError) throw lookupError
+
+    const idsByName = new Map((existing ?? []).map((item) => [item.name, item.id]))
+
+    for (const name of uniqueNames) {
+      if (idsByName.has(name)) continue
+
+      const { data: created, error: insertError } = await supabase
+        .from('categories')
+        .insert({ group_id: profile.group_id, name, created_by: user.id })
+        .select('id')
+        .single()
+
+      if (insertError) throw insertError
+      idsByName.set(name, created.id)
+    }
+
+    return idsByName
+  }
+
+  const addTransactionsBatch = async (items, { source = 'import' } = {}) => {
+    if (!user || !profile || !isSupabaseConfigured || !supabase) return 0
+    if (!Array.isArray(items) || items.length === 0) return 0
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const idsByName = await resolveCategoryIds(items.map((item) => item.category))
+
+      const rows = items.map((item) => {
+        const parsed = new Date(item.date)
+        const dateKey = Number.isNaN(parsed.getTime())
+          ? new Date().toISOString().slice(0, 10)
+          : String(item.date).slice(0, 10)
+
+        return {
+          group_id: profile.group_id,
+          profile_id: user.id,
+          category_id: idsByName.get((item.category || 'Outros').trim() || 'Outros') ?? null,
+          amount: Math.abs(Number(item.amount) || 0),
+          type: item.type === 'income' ? 'income' : 'expense',
+          transaction_date: dateKey,
+          due_date: null,
+          is_paid: true,
+          payment_status: 'paid',
+          note: item.description || 'Sem descricao',
+          source,
+          created_by: user.id,
+        }
+      }).filter((row) => row.amount > 0)
+
+      if (rows.length === 0) return 0
+
+      const { error: insertError } = await supabase.from('transactions').insert(rows)
+      if (insertError) throw insertError
+
+      await loadTransactions(profile.group_id)
+      await logActivity({
+        action: 'statement_imported',
+        metadata: { count: rows.length, source },
+      })
+
+      return rows.length
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const updateTransactionCategory = async (transactionId, categoryName) => {
+    if (!user || !profile || !isSupabaseConfigured || !supabase) return
+
+    const normalizedCategory = (categoryName || '').trim()
+    if (!normalizedCategory) {
+      throw new Error('Escolha uma categoria.')
+    }
+
+    const currentTx = transactions.find((item) => item.id === transactionId)
+    const canEdit = profile.role === 'owner' || currentTx?.profileId === user.id
+    if (!canEdit) {
+      throw new Error('Voce nao tem permissao para classificar esta transacao.')
+    }
+
+    setError(null)
+
+    const idsByName = await resolveCategoryIds([normalizedCategory])
+
+    const { error: updateError } = await supabase
+      .from('transactions')
+      .update({ category_id: idsByName.get(normalizedCategory) })
+      .eq('id', transactionId)
+
+    if (updateError) throw updateError
+
+    await loadTransactions(profile.group_id)
+  }
+
   const users = useMemo(() => {
     if (members.length === 0) return ['Todos']
     return ['Todos', ...members.map((member) => member.full_name || 'Membro')]
@@ -765,6 +922,7 @@ export function FinanceProvider({ children }) {
         is_paid: data.isPaid ?? true,
         payment_status: data.isPaid ? 'paid' : 'pending',
         note: data.description,
+        source: data.source || 'manual',
         created_by: user.id,
       })
       .select('id')
@@ -963,7 +1121,11 @@ export function FinanceProvider({ children }) {
     inviteGroupMember,
     revokeGroupInvite,
     acceptGroupInvite,
+    leaveGroup,
+    removeGroupMember,
     addTransaction,
+    addTransactionsBatch,
+    updateTransactionCategory,
     deleteTransaction,
     addTransactionComment,
     createSharedBudget,

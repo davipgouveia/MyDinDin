@@ -133,15 +133,20 @@ export function PendingClassification({ transactions = [], categories = [], lear
     return [...map.values()].sort((a, b) => (b.count - a.count) || (b.total - a.total))
   }, [transactions])
 
+  // Fontes em ordem de confiança: padrão explícito (a pessoa ensinou
+  // aquela descrição) > dicionário (regras claras) > IA > aprendizado
+  // por palavras do histórico (o mais fraco — é chute estatístico).
   const suggestionFor = (group) => {
     const fromPattern = patterns[group.signature]
     if (fromPattern && categories.includes(fromPattern)) {
       return { category: fromPattern, source: 'pattern' }
     }
-    const fromDictionary = suggestCategory(group.sample, { categories, learnedMap, type: group.type })
+    const fromDictionary = suggestCategory(group.sample, { categories, type: group.type })
     if (fromDictionary) return { category: fromDictionary, source: 'dictionary' }
     const fromAI = aiSuggestions.get(group.key)
     if (fromAI) return { category: fromAI, source: 'ai' }
+    const fromLearned = suggestCategory(group.sample, { categories, learnedMap, type: group.type })
+    if (fromLearned) return { category: fromLearned, source: 'learned' }
     return { category: null, source: null }
   }
 
@@ -151,7 +156,9 @@ export function PendingClassification({ transactions = [], categories = [], lear
     [groups, patterns, aiSuggestions, categories, learnedMap],
   )
 
-  const unsuggested = enriched.filter((entry) => !entry.category)
+  // A IA é chamada pros grupos sem sugestão forte: os que só têm o
+  // chute fraco do histórico e os que não têm sugestão nenhuma.
+  const aiCandidates = enriched.filter((entry) => !entry.category || entry.source === 'learned')
   const aiSuggested = enriched.filter((entry) => entry.source === 'ai' && entry.category)
 
   const classifyGroup = async (group, category) => {
@@ -166,10 +173,10 @@ export function PendingClassification({ transactions = [], categories = [], lear
   }
 
   const askAI = async () => {
-    if (aiLoading || unsuggested.length === 0) return
+    if (aiLoading || aiCandidates.length === 0) return
     setAiLoading(true)
     try {
-      const items = unsuggested.slice(0, 60).map((entry) => ({
+      const items = aiCandidates.slice(0, 60).map((entry) => ({
         key: entry.group.key,
         description: entry.group.sample,
         type: entry.group.type,
@@ -251,7 +258,7 @@ export function PendingClassification({ transactions = [], categories = [], lear
               {bulkSaving ? 'Aplicando...' : `Aceitar ${aiSuggested.length} da IA`}
             </button>
           )}
-          {unsuggested.length > 0 && (
+          {aiCandidates.length > 0 && (
             <button
               type="button"
               disabled={aiLoading}

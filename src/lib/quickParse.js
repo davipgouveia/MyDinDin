@@ -49,12 +49,23 @@ const INCOME_HINTS = [
   'bonus', 'rendimento', 'dividendo', 'deposito',
 ]
 
+// Palavras do MECANISMO do lançamento, não do motivo: aparecem em
+// dezenas de descrições sem relação entre si (todo PIX tem "pix" e
+// "transf") e, se entrarem no aprendizado, a sugestão vira "a categoria
+// de qualquer PIX" — foi o que fez a fila inteira sugerir Alimentação.
+const MECHANISM_TOKENS = new Set([
+  'pix', 'ted', 'doc', 'transf', 'trans', 'transferencia', 'pag', 'rec',
+  'deb', 'cred', 'aut', 'qrs', 'enviado', 'enviada', 'recebido', 'recebida',
+  'mais', 'via', 'realizado', 'realizada', 'compra', 'pagamento', 'saque',
+])
+
 export function buildLearnedCategoryMap(transactions = []) {
   const counts = new Map()
 
   transactions.forEach((tx) => {
     if (!tx?.category || tx.category === UNCATEGORIZED_LABEL) return
     tokenize(tx.description).forEach((token) => {
+      if (MECHANISM_TOKENS.has(token)) return
       if (!counts.has(token)) counts.set(token, new Map())
       const perCategory = counts.get(token)
       perCategory.set(tx.category, (perCategory.get(tx.category) || 0) + 1)
@@ -71,14 +82,19 @@ export function suggestCategory(description, { categories = [], learnedMap = nul
   const text = normalizeText(description)
   const tokens = tokenize(description)
 
-  // 1) Aprendizado com o historico do grupo (vale mais que o chute fixo)
+  // 1) Aprendizado com o historico do grupo (vale mais que o chute
+  // fixo) — mas só com tokens DISCRIMINATIVOS: a palavra precisa
+  // aparecer 2+ vezes na mesma categoria E ser quase exclusiva dela
+  // (pureza >= 80%). Sem isso, um nome ou palavra genérica que já
+  // apareceu em categorias diferentes contamina todas as sugestões.
   if (learnedMap) {
     const scores = new Map()
     tokens.forEach((token) => {
       const perCategory = learnedMap.get(token)
       if (!perCategory) return
+      const total = [...perCategory.values()].reduce((sum, count) => sum + count, 0)
       perCategory.forEach((count, category) => {
-        if (count >= 2 && available.has(normalizeText(category))) {
+        if (count >= 2 && count / total >= 0.8 && available.has(normalizeText(category))) {
           scores.set(category, (scores.get(category) || 0) + count)
         }
       })

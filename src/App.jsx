@@ -6,6 +6,7 @@ import { CheckCircle2, Plus, ServerCrash, Settings, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import SummaryCard from './components/SummaryCard'
 import TransactionItem from './components/TransactionItem'
+import TransactionsView from './components/TransactionsView'
 import { LoginScreen } from './components/LoginScreen'
 import Logo from './components/Logo'
 import { AdvancedStatsCharts, DailyStatsCard, MonthlyStatsCard } from './components/StatsCards'
@@ -295,6 +296,7 @@ function DashboardContent() {
   const pageTabs = useMemo(
     () => [
       { id: 'dashboard', label: t('dashboard') },
+      { id: 'transacoes', label: 'Transações' },
       { id: 'stats', label: t('stats') },
       { id: 'categories', label: t('categories') },
       { id: 'reminders', label: t('reminders') },
@@ -559,6 +561,17 @@ function DashboardContent() {
         </section>
         </section>
         ))}
+
+      {activePage === 'transacoes' && (
+        <TransactionsView
+          transactions={visibleTransactions}
+          panelClass={panelClass}
+          transactionComments={transactionComments}
+          onAddComment={addTransactionComment}
+          onDeleteTransaction={(id) => setPendingDeleteTx(transactions.find((tx) => tx.id === id) || null)}
+          canDeleteTx={(transaction) => profile?.role === 'owner' || transaction.profileId === user?.id}
+        />
+      )}
 
       {activePage === 'stats' && (
         <section className="space-y-4">

@@ -8,7 +8,7 @@ export default function SummaryCard({ title, value, subtitle, highlight = false 
       animate={{ opacity: 1, y: 0, scale: 1 }}
       whileHover={{ y: -3, scale: 1.01 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className={`rounded-2xl p-4 ${
+      className={`min-w-0 overflow-hidden rounded-2xl p-4 ${
         highlight ? 'bg-cyan-500/20 shadow-glow' : 'bg-slate-900/70'
       } backdrop-blur-sm`}
       style={
@@ -32,7 +32,7 @@ export default function SummaryCard({ title, value, subtitle, highlight = false 
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="mt-2 text-2xl font-semibold text-slate-50"
+        className="mt-2 text-[clamp(1.05rem,1rem+0.8vw,1.5rem)] font-semibold leading-tight text-slate-50 [overflow-wrap:anywhere]"
       >
         {formatCurrency(value)}
       </motion.p>

@@ -1196,6 +1196,7 @@ export function FinanceProvider({ children }) {
     leaveGroup,
     removeGroupMember,
     addTransaction,
+    refreshTransactions: loadTransactions,
     addTransactionsBatch,
     updateTransactionCategory,
     updateTransactionsCategory,

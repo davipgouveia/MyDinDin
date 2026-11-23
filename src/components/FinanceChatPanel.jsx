@@ -10,6 +10,9 @@ import { usePreferences } from '../context/PreferencesContext'
 import { useFinancialBudget } from '../hooks/useFinancialAI'
 import { askGemini } from '../lib/geminiAgent'
 import { ConfirmDialog } from './ConfirmDialog'
+import { useFinance } from '../context/FinanceContext'
+import * as shop from '../lib/shopping'
+import { formatCurrency } from '../utils/format'
 
 const STORAGE_KEY = 'mydindin_ai_chat_history'
 
@@ -31,6 +34,7 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
   const bottomRef = useRef(null)
   const isLight = theme === 'light'
   const { addBudget } = useFinancialBudget()
+  const { user: financeUser, profile: financeProfile } = useFinance()
   const { addCustomCategory } = require('../context/TransactionCategoryContext').useTransactionCategory()
 
   // O histórico vive no ChatContext, que persiste no aparelho
@@ -202,6 +206,7 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
       - Se o usuário pedir para criar uma categoria, use a ferramenta 'add_category', mas sempre peça permissão antes de executar.
       - Se o usuário pedir para alterar configurações do site, sempre peça permissão antes de executar.
       - Nunca execute ações sensíveis sem confirmação do usuário.
+      - MÓDULO COMPRAS (lista e compras da casa): para adicionar item à lista de compras use 'add_to_shopping_list'; para registrar uma compra já feita (com loja, itens e preços) use 'register_purchase'; para saber o que está acabando use 'get_running_out'; para preço de um produto ou loja mais barata use 'get_product_price'; para ver a lista de compras use 'get_shopping_list'. Se faltarem preços ou a loja numa compra, pergunte antes de registrar.
     `;
 
     try {
@@ -245,6 +250,62 @@ export function FinanceChatPanel({ insights = {}, recommendations = [], budgets 
             text: `Posso criar a categoria "${name}" do tipo ${type === 'income' ? 'receita' : 'despesa'} para você? Responda "sim" para confirmar ou "não" para cancelar.`,
             meta: { intent: 'category_permission', pendingCategory: { name, type } }
           },
+        ])
+      } else if (response.isFunction && ['add_to_shopping_list', 'register_purchase', 'get_running_out', 'get_product_price', 'get_shopping_list'].includes(response.functionCall.name)) {
+        // Ferramentas do módulo Compras: executam contra os dados reais
+        // (Supabase, via camada de dados) e a resposta é montada aqui,
+        // com os números de verdade — o modelo não inventa valores.
+        const groupId = financeProfile?.group_id
+        let text
+        try {
+          if (!groupId || !financeUser) throw new Error('Sessão não identificada.')
+          const fn = response.functionCall.name
+          const args = response.functionCall.args || {}
+          if (fn === 'add_to_shopping_list') {
+            await shop.addListItem(groupId, financeUser, { name: args.name, quantity: Number(args.quantity) || 1 })
+            text = `Prontinho! Adicionei "${args.name}"${args.quantity ? ` (× ${args.quantity})` : ''} à lista de compras da casa. 🛒`
+          } else if (fn === 'register_purchase') {
+            const { purchase } = await shop.createPurchase(groupId, financeUser, financeProfile, {
+              store: args.store || null,
+              items: (args.items || []).map((i) => ({
+                product: i.product,
+                quantity: Number(i.quantity) || 1,
+                unit_price: i.unit_price != null ? Number(i.unit_price) : null,
+              })),
+              finance: { categoryName: 'Mercado' },
+            })
+            const total = shop.purchaseTotal(purchase)
+            text = `Compra registrada${args.store ? ` no ${args.store}` : ''}: ${formatCurrency(total)}. Os itens saíram da lista e a despesa entrou nas finanças. 🧾`
+          } else if (fn === 'get_running_out') {
+            const forecasts = await shop.getForecast(groupId)
+            const urgent = forecasts.filter((f) => f.forecast.status === 'acabou' || f.forecast.status === 'acabando')
+            text = urgent.length
+              ? `Olho no estoque! 👀\n${urgent.map((f) => `- ${f.product.name}: ${f.forecast.status === 'acabou' ? 'acabou' : `acaba em ~${Math.ceil(f.forecast.days_left)} dias`}`).join('\n')}\nQuer que eu jogue tudo na lista de compras?`
+              : 'Nada acabando por aqui — o estoque está tranquilo. 😌'
+          } else if (fn === 'get_product_price') {
+            const products = await shop.listProducts(groupId)
+            const product = products.find((p) => p.name_norm === shop.nameNorm(args.product)) || products.find((p) => p.name_norm.includes(shop.nameNorm(args.product)))
+            if (!product) {
+              text = `Ainda não tenho compras registradas de "${args.product}", então não sei o preço. Quando registrar a primeira compra, eu passo a acompanhar.`
+            } else {
+              const prices = await shop.productPrices(groupId, product.id)
+              text = prices.cheapest
+                ? `O ${product.name} está mais barato no ${prices.cheapest.store.name}: ${formatCurrency(prices.cheapest.last_price)}/${product.unit || 'un'} (última compra). ${prices.by_store.length > 1 ? `Outras lojas: ${prices.by_store.slice(1).map((s) => `${s.store.name} ${formatCurrency(s.last_price)}`).join(', ')}.` : ''}`
+                : `Ainda não há preço registrado para ${product.name}.`
+            }
+          } else {
+            const pending = await shop.listShoppingList(groupId, { includeDone: false })
+            text = pending.length
+              ? `Sua lista de compras tem ${pending.length} itens pendentes:\n${pending.map((i) => `- ${i.name} × ${i.quantity}`).join('\n')}`
+              : 'A lista de compras está vazia. Quer adicionar algo?'
+          }
+        } catch (shopError) {
+          console.error('Erro nas ferramentas de compras:', shopError)
+          text = 'Tive um problema ao mexer nas compras agora. Tenta de novo em um instante?'
+        }
+        setMessages((current) => [
+          ...current,
+          { id: `assistant-${Date.now()}`, role: 'assistant', text, meta: { intent: 'shopping_tool' } },
         ])
       } else {
         setMessages((current) => [

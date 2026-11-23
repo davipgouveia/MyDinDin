@@ -13,6 +13,7 @@ import { PaymentRemindersSection, RecurringPaymentsSection } from './components/
 import { CategoriesManager } from './components/CategoriesManager'
 import { AIRecommendationsPanel, BudgetAlertPanel } from './components/AIRecommendations'
 import { FinanceChatPanel } from './components/FinanceChatPanel'
+import { ShoppingModule } from './components/shopping/ShoppingModule'
 import { ChatProvider } from './context/ChatContext'
 import { AdvancedTransactionModal } from './components/AdvancedTransactionModal'
 import { MobileBottomNav } from './components/MobileBottomNav'
@@ -298,6 +299,7 @@ function DashboardContent() {
       { id: 'categories', label: t('categories') },
       { id: 'reminders', label: t('reminders') },
       { id: 'ai', label: t('ai') },
+      { id: 'compras', label: 'Compras' },
       { id: 'user', label: t('user') },
     ],
     [t],
@@ -669,6 +671,10 @@ function DashboardContent() {
             </motion.div>
           )}
         </section>
+      )}
+
+      {activePage === 'compras' && (
+        <ShoppingModule panelClass={panelClass} panelSoftClass={panelSoftClass} />
       )}
 
       {activePage === 'user' && (

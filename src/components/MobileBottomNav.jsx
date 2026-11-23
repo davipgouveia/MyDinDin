@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Home, ChartColumnBig, UserRound, Plus, PanelsTopLeft, Bell, Sparkles, Tags, X } from 'lucide-react'
+import { Home, ChartColumnBig, UserRound, Plus, PanelsTopLeft, Bell, Sparkles, Tags, X, ShoppingCart } from 'lucide-react'
 import { usePreferences } from '../context/PreferencesContext'
 import { useEscapeClose } from '../hooks/useEscapeClose'
 
@@ -9,7 +9,7 @@ export function MobileBottomNav({ activePage, onNavigate, onQuickAdd }) {
   const [moreOpen, setMoreOpen] = useState(false)
   useEscapeClose(moreOpen, () => setMoreOpen(false))
 
-  const groupedPages = ['categories', 'reminders', 'ai']
+  const groupedPages = ['categories', 'reminders', 'ai', 'compras']
 
   const navItems = [
     { id: 'dashboard', label: t('dashboard'), icon: Home },
@@ -23,6 +23,7 @@ export function MobileBottomNav({ activePage, onNavigate, onQuickAdd }) {
     { id: 'categories', label: t('categories'), icon: Tags },
     { id: 'reminders', label: t('reminders'), icon: Bell },
     { id: 'ai', label: t('ai'), icon: Sparkles },
+    { id: 'compras', label: 'Compras', icon: ShoppingCart },
   ]
 
   const handleNavigate = (page) => {

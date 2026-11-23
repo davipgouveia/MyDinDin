@@ -47,6 +47,63 @@ const tools = [
           required: ['name', 'type'],
         },
       },
+      {
+        name: 'add_to_shopping_list',
+        description: 'Adiciona um item à lista de compras compartilhada da casa (módulo Compras). Use quando o usuário pedir para colocar algo na lista de compras do mercado.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING', description: 'Nome do produto (ex: Arroz, Leite, Sabão em pó).' },
+            quantity: { type: 'NUMBER', description: 'Quantidade desejada (padrão 1).' },
+          },
+          required: ['name'],
+        },
+      },
+      {
+        name: 'register_purchase',
+        description: 'Registra uma compra de mercado já feita no módulo Compras: grava a compra, baixa os itens da lista e lança a despesa nas finanças. Use quando o usuário disser que comprou itens e informar loja e preços.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            store: { type: 'STRING', description: 'Nome da loja (ex: Assaí, Carrefour).' },
+            items: {
+              type: 'ARRAY',
+              description: 'Itens comprados.',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  product: { type: 'STRING', description: 'Nome do produto.' },
+                  quantity: { type: 'NUMBER', description: 'Quantidade comprada.' },
+                  unit_price: { type: 'NUMBER', description: 'Preço unitário em reais, se informado.' },
+                },
+                required: ['product'],
+              },
+            },
+          },
+          required: ['items'],
+        },
+      },
+      {
+        name: 'get_running_out',
+        description: 'Consulta a previsão de término dos produtos da casa: o que já acabou ou está acabando. Use quando o usuário perguntar o que está acabando ou o que precisa comprar.',
+        parameters: { type: 'OBJECT', properties: {} },
+      },
+      {
+        name: 'get_product_price',
+        description: 'Consulta preços de um produto: última compra, histórico e a loja mais barata. Use quando o usuário perguntar quanto custa ou onde um produto está mais barato.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            product: { type: 'STRING', description: 'Nome do produto.' },
+          },
+          required: ['product'],
+        },
+      },
+      {
+        name: 'get_shopping_list',
+        description: 'Mostra os itens pendentes da lista de compras da casa. Use quando o usuário perguntar o que tem na lista de compras.',
+        parameters: { type: 'OBJECT', properties: {} },
+      },
     ],
   },
 ]

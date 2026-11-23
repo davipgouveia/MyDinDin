@@ -474,14 +474,14 @@ function DashboardContent() {
             panelClass={panelClass}
           />
 
+        <section className="grid gap-3 sm:grid-cols-3">
+          <SummaryCard title="Saldo total" value={summary.balance} subtitle="Atualizado em tempo real" highlight />
+          <SummaryCard title="Total receitas" value={summary.income} />
+          <SummaryCard title="Total despesas" value={summary.expense} />
+        </section>
+
         <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="grid gap-4">
-            <section className="grid gap-3 sm:grid-cols-3">
-              <SummaryCard title="Saldo total" value={summary.balance} subtitle="Atualizado em tempo real" highlight />
-              <SummaryCard title="Total receitas" value={summary.income} />
-              <SummaryCard title="Total despesas" value={summary.expense} />
-            </section>
-
             <section className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Categorias</h2>

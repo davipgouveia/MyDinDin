@@ -37,6 +37,17 @@ Endpoints principais (produtos e lojas podem ser referenciados por nome ou id):
 - GET /spending?group_by=month|store|category — gastos agrupados
 - GET /search?q=arr — buscar produtos e lojas
 
+Você também pode consultar as FINANÇAS do grupo (somente leitura), com o mesmo token:
+Base: ${origin}/api/financas
+- GET /overview?month=2026-11 — receitas, despesas e saldo do mês, maiores categorias e contas pendentes
+- GET /transactions?month=2026-11&type=expense&q=mercado&limit=100 — lançamentos com filtros (type=income|expense, category=nome da categoria, paid=true|false, q=texto na descrição)
+- GET /categories?month=2026-11 — categorias com totais do mês e o orçamento de cada uma
+- GET /budgets?month=2026-11 — orçamentos por categoria: limite, gasto, restante e % usado
+- GET /bills — contas ainda não pagas: vencidas e a vencer, ordenadas pelo vencimento
+- GET /summary?months=6 — série dos últimos meses (receitas x despesas x saldo)
+- GET /group — dados do grupo e dos membros
+Use essas rotas quando eu perguntar quanto ganhamos ou gastamos, onde foi o dinheiro, quais contas vencem ou como está um orçamento. As finanças são só leitura: você não lança nem altera nada nelas.
+
 Responda sempre em português e confirme comigo antes de registrar compras grandes.`
 }
 
@@ -103,8 +114,10 @@ export function ApiView({ panelClass, panelSoftClass, toast }) {
         <p className="text-sm text-slate-400">
           Gere um token e entregue ao seu Muse (o seu assistente pessoal): ele passa a consultar e operar a
           lista de compras da família — ver a lista, adicionar itens, registrar compras, comparar preços e
-          avisar o que está acabando. Cada pessoa do grupo gera o próprio token, e tudo que o token faz fica
-          registrado como ação sua. Trate o token como uma senha: quem tem ele acessa as compras do grupo.
+          avisar o que está acabando — e também a <strong>consultar as finanças do grupo em modo leitura</strong>:
+          lançamentos, saldo do mês, orçamentos e contas a pagar. Cada pessoa do grupo gera o próprio token, e
+          tudo que o token faz fica registrado como ação sua. Trate o token como uma senha: quem tem ele acessa
+          as compras e as finanças do grupo.
         </p>
 
         <form onSubmit={createToken} className="mt-4 flex flex-wrap gap-2">
@@ -190,6 +203,18 @@ export function ApiView({ panelClass, panelSoftClass, toast }) {
         <p className="mt-3 text-xs text-slate-500">
           Autenticação: header <span className="font-mono">Authorization: Bearer mdd_...</span> (ou a sessão do app).
           Produtos e lojas podem ser referenciados por nome ou id.
+        </p>
+        <h4 className="mb-2 mt-5 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Finanças (somente leitura)</h4>
+        <ul className="grid gap-x-6 gap-y-1 text-xs text-slate-400 sm:grid-cols-2">
+          {[
+            'GET /api/financas/overview?month=2026-11', 'GET /api/financas/transactions?type=expense',
+            'GET /api/financas/categories?month=2026-11', 'GET /api/financas/budgets?month=2026-11',
+            'GET /api/financas/bills', 'GET /api/financas/summary?months=6',
+            'GET /api/financas/group', 'GET /api/financas/health',
+          ].map((line) => <li key={line} className="font-mono">{line}</li>)}
+        </ul>
+        <p className="mt-3 text-xs text-slate-500">
+          O mesmo token vale para as duas APIs. Nas finanças o acesso é só de consulta — nada é lançado ou alterado.
         </p>
       </div>
     </div>

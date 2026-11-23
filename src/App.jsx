@@ -1,12 +1,20 @@
 "use client"
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { CheckCircle2, Plus, ServerCrash, Settings, X } from 'lucide-react'
+import { Check, CheckCircle2, Plus, RotateCcw, ServerCrash, Settings, SlidersHorizontal, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import SummaryCard from './components/SummaryCard'
 import TransactionItem from './components/TransactionItem'
 import TransactionsView from './components/TransactionsView'
+import { DashboardPanel } from './components/DashboardPanel'
+import {
+  DASHBOARD_PANEL_LABELS,
+  DEFAULT_DASHBOARD_LAYOUT,
+  SPAN_STEPS,
+  loadDashboardLayout,
+  saveDashboardLayout,
+} from './lib/dashboardLayout'
 import { LoginScreen } from './components/LoginScreen'
 import Logo from './components/Logo'
 import { AdvancedStatsCharts, DailyStatsCard, MonthlyStatsCard } from './components/StatsCards'
@@ -126,6 +134,55 @@ function DashboardContent() {
   // Sinal da pós-importação guiada: cada import concluído incrementa e
   // a fila de classificação rola pra vista (é o próximo passo natural).
   const [classifyFocus, setClassifyFocus] = useState(0)
+  const [dashLayout, setDashLayout] = useState(DEFAULT_DASHBOARD_LAYOUT)
+  const [editingLayout, setEditingLayout] = useState(false)
+  const dashLoadedRef = useRef(false)
+
+  useEffect(() => {
+    setDashLayout(loadDashboardLayout())
+    dashLoadedRef.current = true
+  }, [])
+
+  useEffect(() => {
+    if (dashLoadedRef.current) saveDashboardLayout(dashLayout)
+  }, [dashLayout])
+
+  const moveDashPanel = useCallback((id, dir) => {
+    setDashLayout((current) => {
+      const order = [...current.order]
+      const index = order.indexOf(id)
+      const target = index + dir
+      if (index < 0 || target < 0 || target >= order.length) return current
+      ;[order[index], order[target]] = [order[target], order[index]]
+      return { ...current, order }
+    })
+  }, [])
+
+  const changeDashSpan = useCallback((id, dir) => {
+    setDashLayout((current) => {
+      const span = current.spans[id] ?? 12
+      const stepIndex = SPAN_STEPS.indexOf(span)
+      const base = stepIndex < 0 ? SPAN_STEPS.indexOf(12) : stepIndex
+      const next = SPAN_STEPS[Math.min(SPAN_STEPS.length - 1, Math.max(0, base + dir))]
+      if (next === span) return current
+      return { ...current, spans: { ...current.spans, [id]: next } }
+    })
+  }, [])
+
+  const reorderDashPanel = useCallback((fromId, toId, before) => {
+    setDashLayout((current) => {
+      const order = current.order.filter((item) => item !== fromId)
+      let index = order.indexOf(toId)
+      if (index < 0) return current
+      if (!before) index += 1
+      order.splice(index, 0, fromId)
+      return { ...current, order }
+    })
+  }, [])
+
+  const resetDashLayout = useCallback(() => {
+    setDashLayout(DEFAULT_DASHBOARD_LAYOUT)
+  }, [])
 
   const learnedCategoryMap = useMemo(() => buildLearnedCategoryMap(transactions), [transactions])
   const allCategoryNames = useMemo(() => {
@@ -140,6 +197,9 @@ function DashboardContent() {
   const pendingClassification = useMemo(
     () => transactions.filter((tx) => tx.category === UNCATEGORIZED_LABEL),
     [transactions],
+  )
+  const visibleDashPanels = dashLayout.order.filter(
+    (id) => id !== 'pending' || pendingClassification.length > 0,
   )
 
   const handleQuickSubmit = useCallback(async ({ amount, type, description, category, dateISO }) => {
@@ -447,118 +507,168 @@ function DashboardContent() {
           />
         ) : (
         <section className="grid gap-4">
-          <QuickCapture
-            categories={allCategoryNames}
-            learnedMap={learnedCategoryMap}
-            onSubmit={handleQuickSubmit}
-            panelClass={panelClass}
-          />
-
-          <WeeklySummary transactions={transactions} panelClass={panelClass} />
-
-          <PendingClassification
-            transactions={pendingClassification}
-            categories={allCategoryNames}
-            learnedMap={learnedCategoryMap}
-            onClassify={updateTransactionsCategory}
-            panelClass={panelClass}
-            focusSignal={classifyFocus}
-          />
-
-          <StatementImport
-            transactions={transactions}
-            categories={allCategoryNames}
-            learnedMap={learnedCategoryMap}
-            onImport={(items) => addTransactionsBatch(items, { source: 'import' })}
-            onImported={() => setClassifyFocus((current) => current + 1)}
-            panelClass={panelClass}
-          />
-
-        <section className="grid gap-3 sm:grid-cols-3">
-          <SummaryCard title="Saldo total" value={summary.balance} subtitle="Atualizado em tempo real" highlight />
-          <SummaryCard title="Total receitas" value={summary.income} />
-          <SummaryCard title="Total despesas" value={summary.expense} />
-        </section>
-
-        <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="grid gap-4">
-            <section className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Categorias</h2>
-                <select
-                  value={ownerFilter}
-                  onChange={(event) => setOwnerFilter(event.target.value)}
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+          <div className="flex items-center justify-end gap-2">
+            {editingLayout ? (
+              <>
+                <button
+                  type="button"
+                  onClick={resetDashLayout}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800"
                 >
-                  {users.map((item) => (
-                    <option key={item} value={item}>
-                      {item === 'Todos' ? t('coupleTotal') : item}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="h-64 w-full md:h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={categoryChart} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={56} outerRadius={90} paddingAngle={2}>
-                      {categoryChart.map((entry, index) => (
-                        <Cell key={entry.name} fill={palette[index % palette.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: '#0f172a',
-                        border: '1px solid #1e293b',
-                        borderRadius: '0.75rem',
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              {categoryChart.length > 0 && (
-                <ul className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
-                  {categoryChart.slice(0, 8).map((entry, index) => {
-                    const total = categoryChart.reduce((sum, item) => sum + item.value, 0)
-                    const percent = total > 0 ? (entry.value / total) * 100 : 0
-                    return (
-                      <li key={entry.name} className="flex items-center gap-2 text-xs">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: palette[index % palette.length] }} />
-                        <span className="min-w-0 flex-1 truncate text-slate-300">{entry.name}</span>
-                        <span className="font-medium text-slate-200">{formatCurrency(entry.value)}</span>
-                        <span className="w-10 text-right text-slate-500">{percent.toFixed(0)}%</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </section>
+                  <RotateCcw size={13} /> Restaurar padrão
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingLayout(false)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400"
+                >
+                  <Check size={13} /> Concluir
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingLayout(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800"
+              >
+                <SlidersHorizontal size={13} /> Personalizar painéis
+              </button>
+            )}
           </div>
 
-          <section className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Últimas transações</h2>
-
-            <ul className="space-y-2">
-              {latestTransactions.length > 0 ? (
-                latestTransactions.map((transaction) => (
-                  <TransactionItem
-                    key={transaction.id}
-                    transaction={transaction}
-                    onDelete={(id) => setPendingDeleteTx(transactions.find((tx) => tx.id === id) || null)}
-                    canDelete={profile?.role === 'owner' || transaction.profileId === user?.id}
-                    comments={transactionComments[transaction.id] || []}
-                    onAddComment={addTransactionComment}
+          <div className="grid gap-4 lg:grid-cols-12">
+            {visibleDashPanels.map((panelId) => (
+              <DashboardPanel
+                key={panelId}
+                id={panelId}
+                label={DASHBOARD_PANEL_LABELS[panelId]}
+                span={dashLayout.spans[panelId] ?? 12}
+                editing={editingLayout}
+                isFirst={dashLayout.order.indexOf(panelId) === 0}
+                isLast={dashLayout.order.indexOf(panelId) === dashLayout.order.length - 1}
+                onMove={moveDashPanel}
+                onSpanChange={changeDashSpan}
+                onReorder={reorderDashPanel}
+              >
+                {panelId === 'quick' && (
+                  <QuickCapture
+                    categories={allCategoryNames}
+                    learnedMap={learnedCategoryMap}
+                    onSubmit={handleQuickSubmit}
+                    panelClass={panelClass}
                   />
-                ))
-              ) : (
-                <li className="rounded-xl border border-dashed border-slate-700 p-4 text-center text-sm text-slate-400">
-                  Nenhuma transação para o filtro selecionado.
-                </li>
-              )}
-            </ul>
-          </section>
-        </section>
+                )}
+                {panelId === 'weekly' && (
+                  <WeeklySummary transactions={transactions} panelClass={panelClass} />
+                )}
+                {panelId === 'pending' && (
+                  <PendingClassification
+                    transactions={pendingClassification}
+                    categories={allCategoryNames}
+                    learnedMap={learnedCategoryMap}
+                    onClassify={updateTransactionsCategory}
+                    panelClass={panelClass}
+                    focusSignal={classifyFocus}
+                  />
+                )}
+                {panelId === 'import' && (
+                  <StatementImport
+                    transactions={transactions}
+                    categories={allCategoryNames}
+                    learnedMap={learnedCategoryMap}
+                    onImport={(items) => addTransactionsBatch(items, { source: 'import' })}
+                    onImported={() => setClassifyFocus((current) => current + 1)}
+                    panelClass={panelClass}
+                  />
+                )}
+                {panelId === 'summary' && (
+                <section className="grid gap-3 sm:grid-cols-3">
+                  <SummaryCard title="Saldo total" value={summary.balance} subtitle="Atualizado em tempo real" highlight />
+                  <SummaryCard title="Total receitas" value={summary.income} />
+                  <SummaryCard title="Total despesas" value={summary.expense} />
+                </section>
+                )}
+                {panelId === 'categories' && (
+                  <section className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Categorias</h2>
+                      <select
+                        value={ownerFilter}
+                        onChange={(event) => setOwnerFilter(event.target.value)}
+                        className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      >
+                        {users.map((item) => (
+                          <option key={item} value={item}>
+                            {item === 'Todos' ? t('coupleTotal') : item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="h-64 w-full md:h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={categoryChart} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={56} outerRadius={90} paddingAngle={2}>
+                            {categoryChart.map((entry, index) => (
+                              <Cell key={entry.name} fill={palette[index % palette.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              background: '#0f172a',
+                              border: '1px solid #1e293b',
+                              borderRadius: '0.75rem',
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {categoryChart.length > 0 && (
+                      <ul className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                        {categoryChart.slice(0, 8).map((entry, index) => {
+                          const total = categoryChart.reduce((sum, item) => sum + item.value, 0)
+                          const percent = total > 0 ? (entry.value / total) * 100 : 0
+                          return (
+                            <li key={entry.name} className="flex items-center gap-2 text-xs">
+                              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: palette[index % palette.length] }} />
+                              <span className="min-w-0 flex-1 truncate text-slate-300">{entry.name}</span>
+                              <span className="font-medium text-slate-200">{formatCurrency(entry.value)}</span>
+                              <span className="w-10 text-right text-slate-500">{percent.toFixed(0)}%</span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                  </section>
+                )}
+                {panelId === 'latest' && (
+                <section className={`rounded-[1.75rem] border p-4 md:p-5 ${panelClass}`}>
+                  <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Últimas transações</h2>
+
+                  <ul className="space-y-2">
+                    {latestTransactions.length > 0 ? (
+                      latestTransactions.map((transaction) => (
+                        <TransactionItem
+                          key={transaction.id}
+                          transaction={transaction}
+                          onDelete={(id) => setPendingDeleteTx(transactions.find((tx) => tx.id === id) || null)}
+                          canDelete={profile?.role === 'owner' || transaction.profileId === user?.id}
+                          comments={transactionComments[transaction.id] || []}
+                          onAddComment={addTransactionComment}
+                        />
+                      ))
+                    ) : (
+                      <li className="rounded-xl border border-dashed border-slate-700 p-4 text-center text-sm text-slate-400">
+                        Nenhuma transação para o filtro selecionado.
+                      </li>
+                    )}
+                  </ul>
+                </section>
+                )}
+              </DashboardPanel>
+            ))}
+          </div>
         </section>
         ))}
 

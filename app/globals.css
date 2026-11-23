@@ -299,3 +299,10 @@ html[data-theme='light'] select option {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Painéis do dashboard: largura definida pelo usuário (grade de 12 colunas) */
+@media (min-width: 1024px) {
+  .dash-panel {
+    grid-column: span var(--span, 12) / span var(--span, 12);
+  }
+}

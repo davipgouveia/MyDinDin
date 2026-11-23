@@ -251,3 +251,146 @@ export async function groupInfo(admin, groupId) {
   ])
   return { group: group || null, members: members || [] }
 }
+
+/* ------------------------------------------------------------------ */
+/* Escrita (v2.15.0): o token tambem altera as financas do grupo.      */
+/* ------------------------------------------------------------------ */
+
+import { nameNorm } from './comprasServer'
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+async function resolveCategoryForWrite(admin, groupId, userId, ref) {
+  if (!ref) return null
+  const map = await categoryMap(admin, groupId)
+  if (map.has(ref)) return map.get(ref)
+  const wanted = nameNorm(ref)
+  for (const c of map.values()) if (nameNorm(c.name) === wanted) return c
+  const { data, error } = await admin
+    .from('categories')
+    .insert({ group_id: groupId, name: String(ref).trim(), created_by: userId })
+    .select('id, name, icon, color')
+    .single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function getTransaction(admin, groupId, id) {
+  const { data } = await admin.from('transactions').select(TX_SELECT).eq('group_id', groupId).eq('id', id).maybeSingle()
+  return data || null
+}
+
+export async function createTransaction(admin, groupId, userId, body = {}) {
+  const amount = Number(body.amount)
+  if (!amount || amount <= 0) throw new Error('Informe "amount" maior que zero.')
+  if (body.type !== 'income' && body.type !== 'expense') throw new Error('Informe "type": "income" ou "expense".')
+  const category = await resolveCategoryForWrite(admin, groupId, userId, body.category)
+  const isPaid = body.is_paid !== false
+  const { data, error } = await admin
+    .from('transactions')
+    .insert({
+      group_id: groupId,
+      profile_id: userId,
+      category_id: category ? category.id : null,
+      amount: roundMoney(amount),
+      type: body.type,
+      transaction_date: DATE_RE.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10),
+      due_date: DATE_RE.test(body.due_date || '') ? body.due_date : null,
+      is_paid: isPaid,
+      payment_status: body.payment_status || (isPaid ? 'paid' : 'pending'),
+      payment_method: body.payment_method || null,
+      note: body.note || null,
+      notes: body.notes || null,
+      source: 'api',
+      created_by: userId,
+    })
+    .select(TX_SELECT)
+    .single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function updateTransaction(admin, groupId, userId, id, body = {}) {
+  const existing = await getTransaction(admin, groupId, id)
+  if (!existing) return null
+  const patch = {}
+  if (body.amount !== undefined) {
+    const a = Number(body.amount)
+    if (!a || a <= 0) throw new Error('"amount" deve ser maior que zero.')
+    patch.amount = roundMoney(a)
+  }
+  if (body.type === 'income' || body.type === 'expense') patch.type = body.type
+  if (DATE_RE.test(body.date || '')) patch.transaction_date = body.date
+  if (body.due_date !== undefined) patch.due_date = DATE_RE.test(body.due_date || '') ? body.due_date : null
+  if (typeof body.is_paid === 'boolean') {
+    patch.is_paid = body.is_paid
+    if (body.payment_status === undefined) patch.payment_status = body.is_paid ? 'paid' : 'pending'
+  }
+  if (body.payment_status !== undefined) patch.payment_status = body.payment_status
+  if (body.payment_method !== undefined) patch.payment_method = body.payment_method
+  if (body.note !== undefined) patch.note = body.note
+  if (body.notes !== undefined) patch.notes = body.notes
+  if (body.category !== undefined) {
+    const c = await resolveCategoryForWrite(admin, groupId, userId, body.category)
+    patch.category_id = c ? c.id : null
+  }
+  if (!Object.keys(patch).length) throw new Error('Nada para atualizar: envie ao menos um campo.')
+  patch.updated_at = new Date().toISOString()
+  const { data, error } = await admin
+    .from('transactions')
+    .update(patch)
+    .eq('group_id', groupId)
+    .eq('id', id)
+    .select(TX_SELECT)
+    .single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function deleteTransaction(admin, groupId, id) {
+  // Despesa gerada por uma compra: desvincula a compra antes de apagar.
+  await admin.from('purchases').update({ transaction_id: null }).eq('group_id', groupId).eq('transaction_id', id)
+  const { data, error } = await admin.from('transactions').delete().eq('group_id', groupId).eq('id', id).select('id')
+  if (error) throw new Error(error.message)
+  return (data || []).length > 0
+}
+
+export async function upsertBudget(admin, groupId, userId, body = {}) {
+  if (!body.category) throw new Error('Informe "category" (nome ou id).')
+  const limit = Number(body.limit ?? body.limit_amount)
+  if (!limit || limit <= 0) throw new Error('Informe "limit" maior que zero.')
+  const category = await resolveCategoryForWrite(admin, groupId, userId, body.category)
+  const { month, start } = monthBounds(body.month)
+  const { error } = await admin.from('budgets').upsert(
+    {
+      group_id: groupId,
+      category_id: category.id,
+      month_start: start,
+      limit_amount: roundMoney(limit),
+      alert_threshold_percent: body.alert_threshold_percent ?? 80,
+      created_by: userId,
+    },
+    { onConflict: 'group_id,category_id,month_start' },
+  )
+  if (error) throw new Error(error.message)
+  const budgets = await listBudgets(admin, groupId, month)
+  return budgets.find((b) => b.category_id === category.id) || null
+}
+
+export async function deleteBudget(admin, groupId, id) {
+  const { data, error } = await admin.from('budgets').delete().eq('group_id', groupId).eq('id', id).select('id')
+  if (error) throw new Error(error.message)
+  return (data || []).length > 0
+}
+
+export async function createCategory(admin, groupId, userId, body = {}) {
+  const name = String(body.name || '').trim()
+  if (!name) throw new Error('Informe "name" da categoria.')
+  const { data, error } = await admin
+    .from('categories')
+    .insert({ group_id: groupId, name, icon: body.icon || null, color: body.color || null, created_by: userId })
+    .select('id, name, icon, color')
+    .single()
+  if (error) throw new Error(error.message)
+  return data
+}

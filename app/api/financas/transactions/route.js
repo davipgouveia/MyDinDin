@@ -1,5 +1,5 @@
-import { withAuth, json } from '../../../../src/lib/comprasRoute'
-import { listTransactions } from '../../../../src/lib/financasServer'
+import { withAuth, json, readBody } from '../../../../src/lib/comprasRoute'
+import { listTransactions, createTransaction } from '../../../../src/lib/financasServer'
 
 export async function GET(request) {
   return withAuth(request, async ({ admin, groupId }) => {
@@ -16,5 +16,12 @@ export async function GET(request) {
         offset: sp.get('offset') || undefined,
       }),
     )
+  })
+}
+
+export async function POST(request) {
+  return withAuth(request, async ({ admin, groupId, userId }) => {
+    const body = await readBody(request)
+    return json(await createTransaction(admin, groupId, userId, body), 201)
   })
 }
